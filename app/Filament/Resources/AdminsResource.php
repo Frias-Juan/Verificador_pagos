@@ -2,13 +2,13 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\RolesResource\Pages;
-use App\Filament\Resources\RolesResource\RelationManagers;
-use App\Models\Roles;
-use Filament\Actions\DeleteAction;
-use Filament\Facades\Filament;
+use App\Filament\Resources\AdminsResource\Pages;
+use App\Filament\Resources\AdminsResource\RelationManagers;
+use App\Models\Tenant;
+use App\Models\User;
+use Dom\Text;
 use Filament\Forms;
-use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Section;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -17,11 +17,16 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Spatie\Permission\Models\Role;
 
-class RolesResource extends Resource
+class AdminsResource extends Resource
 {
-    protected static ?string $model = Role::class;
+    protected static ?string $model = User::class;
+
+    protected static ?string $modelLabel = 'Admin'; 
+
+    protected static ?string $navigationLabel = 'Admins';
+    
+    protected static ?string $title = 'Gestión de Admins';
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
@@ -30,9 +35,6 @@ class RolesResource extends Resource
         return $form
             ->schema([
                 TextInput::make('name')
-            ->required()
-            ->minLength(4)
-            ->maxLength(255)
             ]);
     }
 
@@ -42,23 +44,23 @@ class RolesResource extends Resource
             ->columns([
                 TextColumn::make('name')
                 ->label('Nombre')
-                ->searchable()
-                ->sortable()
+                ->searchable(),
+                
             ])
             ->filters([
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make()
-                ->iconButton(),
-                Tables\Actions\DeleteAction::make()
-                ->visible(fn () => Filament::auth()->user()->hasRole('Superadmin'))
-                ->iconButton()
+                Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
-                //
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make(),
+                ]),
             ]);
     }
+
+    
 
     public static function getRelations(): array
     {
@@ -67,17 +69,12 @@ class RolesResource extends Resource
         ];
     }
 
-    public static function getNavigationGroup(): ?string
-    {
-    return 'Settings';
-    }
-
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListRoles::route('/'),
-            /*'create' => Pages\CreateRoles::route('/create'),
-            'edit' => Pages\EditRoles::route('/{record}/edit'),*/
+            'index' => Pages\ListAdmins::route('/'),
+            'create' => Pages\CreateAdmins::route('/create'),
+            'edit' => Pages\EditAdmins::route('/{record}/edit'),
         ];
     }
 }
