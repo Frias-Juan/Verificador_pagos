@@ -3,144 +3,193 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\UsersResource\Pages;
-use App\Filament\Resources\UsersResource\RelationManagers;
 use App\Models\User;
-use App\Models\Users;
-use Closure;
-use Filament\Facades\Filament;
 use Filament\Forms;
-use Filament\Forms\Components\Grid;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
-use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use PhpParser\Node\Stmt\Label;
 
 class UsersResource extends Resource
 {
     protected static ?string $model = User::class;
-
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-users';
+    protected static ?string $navigationLabel = 'Users';
+    protected static ?string $modelLabel = 'User';
+    protected static ?string $pluralModelLabel = 'Users';
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                TextInput::make('name')
-                ->label('Nombre')
-                ->required()
-                ->minLength(4)
-                ->maxLength(100),
-                TextInput::make('lastname')
-                ->label('Apellido')
-                ->required()
-                ->minLength(4)
-                ->maxLength(100),
-                TextInput::make('email')
-                ->label('Correo Electrónico')
-                ->required()
-                ->email(),
-                TextInput::make('password')
-                ->label('Contraseña')
-                ->password()
-                ->required(),
-               Select::make('roles')
-                ->relationship('roles', 'name')
-                ->label('Rol')
-                ->required()
-                ->reactive(),
-                Select::make('permissions')
-                ->relationship('permissions', 'name')
-                ->label('Permisos')
-                ->required()
-                ->multiple()
-                ->preload()
-                /*Section::make('Datos Admin')
-                    ->relationship('tenants')
+                 Forms\Components\Section::make('Roles y Permisos')
+                            ->schema([
+                        Forms\Components\Select::make('roles')
+                            ->label('Roles')
+                            ->relationship('roles', 'name')
+                            ->preload()
+                            ->searchable()
+                            ->required(),
+                            
+                        Forms\Components\Select::make('permissions')
+                            ->label('Permisos')
+                            ->relationship('permissions', 'name')
+                            ->multiple()
+                            ->preload()
+                            ->searchable()
+                            ->required(),
+                    ])->columns(2),
+
+                Forms\Components\Section::make('Información Personal')
                     ->schema([
-                    Grid::make(3)
-                    ->schema([
-                        Select::make('type_ident')
-                            ->label('Tipo Doc.')
-                            ->options([
-                                'V' => 'V',
-                                'E' => 'E',
-                                'J' => 'J',
-                                'G' => 'G',
-                            ])
+                        Forms\Components\TextInput::make('name')
+                            ->label('Nombre')
                             ->required()
-                            ->columnSpan(1),
-                TextInput::make('cedula')
-                    ->label('Cedula/RIF')
-                    ->required()
-                    ->minLength(8)
-                    ->maxLength(10)
-                    // NOTA: También puedes usar ->visible(fn (Closure $get): bool => $get('role') === 'Admin'),
-                            ])
-                            ])*/
-                            ]);
-            
+                            ->minLength(2)
+                            ->maxLength(100),
+                            
+                        Forms\Components\TextInput::make('lastname')
+                            ->label('Apellido')
+                            ->required()
+                            ->minLength(2)
+                            ->maxLength(100),
+                            
+                        Forms\Components\TextInput::make('email')
+                            ->label('Correo Electrónico')
+                            ->required()
+                            ->email()
+                            ->unique(ignoreRecord: true),
+                            
+                        Forms\Components\TextInput::make('password')
+                            ->label('Contraseña')
+                            ->password()
+                            ->revealable()
+                            ->required(fn ($context) => $context === 'create')
+                            ->dehydrated(fn ($state) => filled($state))
+                            ->minLength(8)
+                            ->confirmed(),
+                            
+                        Forms\Components\TextInput::make('password_confirmation')
+                            ->label('Confirmar Contraseña')
+                            ->password()
+                            ->revealable()
+                            ->required(fn ($context) => $context === 'create')
+                            ->dehydrated(false),
+                            TextInput::make('cedula')
+                            ->label('Cédula/RIF')
+                            ->required(),
+                             TextInput::make('phone')
+                            ->label('Teléfono')
+                            ->required()
+                            ->mask('9999-9999999'),
+                            ])->columns(2),
+                    
+                       
+            ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
             ->columns([
-                TextColumn::make('name')
-                ->label('Nombre')
-                ->searchable()
-                ->sortable(),
-                TextColumn::make('lastname')
-                ->label('Apellido')
-                ->searchable()
-                ->sortable(),
-                TextColumn::make('email')
-                ->label('Email')
-                ->searchable(),
-                TextColumn::make('roles.name')
-                ->label('Rol')
-                ->searchable(),
+                Tables\Columns\TextColumn::make('name')
+                    ->label('Nombre')
+                    ->searchable()
+                    ->sortable(),
+                    
+                Tables\Columns\TextColumn::make('lastname')
+                    ->label('Apellido')
+                    ->searchable()
+                    ->sortable(),
+                    
+                Tables\Columns\TextColumn::make('email')
+                    ->label('Email')
+                    ->searchable()
+                    ->sortable(),
+                    
+                Tables\Columns\TextColumn::make('roles.name')
+                    ->label('Rol')
+                    ->badge()
+                    ->separator(', ')
+                    ->searchable(),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('roles')
+                    ->label('Rol')
+                    ->relationship('roles', 'name')
+                    ->multiple()
+                    ->preload(),
+                    
+                Tables\Filters\SelectFilter::make('tenant_id')
+                    ->label('Negocio')
+                    ->relationship('tenant', 'business_name')
+                    ->searchable()
+                    ->preload(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make()
-                ->iconButton(),
+                Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make()
-                ->visible(fn () => Filament::auth()->user()->hasRole('Superadmin'))
-                ->iconButton()
+                    ->visible(fn (): bool => auth()->user()->hasRole('Superadmin')),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn (): bool => auth()->user()->hasRole('Superadmin')),
                 ]),
             ]);
     }
 
-    
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        
+        // Superadmin ve todos los usuarios
+        if (auth()->user()->hasRole('Superadmin')) {
+            return $query;
+        }
+        
+        // Tenant Admin ve usuarios de SU tenant
+        if (auth()->user()->hasRole('Tenant Admin') && auth()->user()->tenant_id) {
+            return $query->where('tenant_id', auth()->user()->tenant_id);
+        }
+        
+        // Employee ve solo usuarios de SU tenant (excepto Superadmin)
+        if (auth()->user()->hasRole('Employee') && auth()->user()->tenant_id) {
+            return $query->where('tenant_id', auth()->user()->tenant_id)
+                ->whereDoesntHave('roles', function ($q) {
+                    $q->where('name', 'Superadmin');
+                });
+        }
+        
+        // Por defecto, no ver nada
+        return $query->whereRaw('1 = 0');
+    }
+
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
     public static function getNavigationGroup(): ?string
     {
     return 'Settings';
     }
+
     public static function getPages(): array
     {
         return [
             'index' => Pages\ListUsers::route('/'),
-            /*'create' => Pages\CreateUsers::route('/create'),
-            'edit' => Pages\EditUsers::route('/{record}/edit'),*/
+            'create' => Pages\CreateUsers::route('/create'),
+            'edit' => Pages\EditUsers::route('/{record}/edit'),
         ];
+    }
+    
+    public static function canCreate(): bool
+    {
+        return auth()->user()->hasAnyRole(['Superadmin', 'Admin']);
     }
 }

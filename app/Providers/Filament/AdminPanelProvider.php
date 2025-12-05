@@ -7,6 +7,7 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Http\Middleware\IdentifyTenant;
 use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -28,10 +29,13 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('admin')
-            ->path('superadmin')
+            ->path('admin')
             ->login()
+            ->registration() 
+            ->passwordReset() 
+            ->profile() 
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::Indigo,
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
@@ -52,11 +56,15 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                IdentifyTenant::class,
             ])
             ->authMiddleware([
                 Authenticate::class,
             ])
-             ->navigationGroups([
+             ->tenantMiddleware([
+                // Middleware específico para recursos tenant
+            ], isPersistent: true)
+            ->navigationGroups([
                 \Filament\Navigation\NavigationGroup::make()
             ->label('Settings')
             ->collapsed()

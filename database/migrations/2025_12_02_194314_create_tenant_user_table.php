@@ -12,17 +12,26 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('tenant_user', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('tenant_id')
-                ->constrained('tenants')
-                ->cascadeOnDelete();
-
-            $table->foreignId('user_id')
-                ->constrained('users')
-                ->cascadeOnDelete();
-
+            // CAMBIO 1: tenant_id como string (no foreignId)
+            $table->string('tenant_id');
+            
+            // CAMBIO 2: user_id como unsignedBigInteger (correcto)
+            $table->unsignedBigInteger('user_id');
+            
             $table->string('role_in_tenant')->default('admin'); 
             $table->timestamps();
+
+            // Foreign key corregida para tenant_id
+            $table->foreign('tenant_id')
+                ->references('id')
+                ->on('tenants')
+                ->onDelete('cascade');
+                
+            // Foreign key para user_id
+            $table->foreign('user_id')
+                ->references('id')
+                ->on('users')
+                ->onDelete('cascade');
 
             $table->unique(['tenant_id', 'user_id']);
         });

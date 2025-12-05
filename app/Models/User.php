@@ -2,21 +2,20 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Filament\Models\Contracts\HasTenancy;
-use Illuminate\Support\Collection;
+use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use Illuminate\Database\Eloquent\Factories\BelongsToRelationship;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Support\Collection;
+use Laravel\Sanctum\HasApiTokens;
 
-
-class User extends Authenticatable 
+class User extends Authenticatable implements FilamentUser
 {
      use HasFactory, Notifiable, HasApiTokens, HasRoles;
 
@@ -28,6 +27,7 @@ class User extends Authenticatable
         'cedula',
         'phone',
         'password',
+        'tenant_id'
     ];
 
     protected $hidden = [
@@ -43,32 +43,59 @@ class User extends Authenticatable
         ];
     }
 
-    // RELACIONES
-    public function tenants(): BelongsToMany
+    public function tenant(): BelongsTo
     {
-        return $this->belongsToMany(Tenant::class, 'tenant_user');
+        return $this->BelongsTo(Tenant::class);
     }
 
-    // Tenants donde el usuario es propietario
+    public function tenants(): BelongsToMany
+    {
+        return $this->belongsToMany(Tenant::class, 'tenant_user', 'user_id', 'tenant_id')
+        ->withPivot('role_in_tenant')
+            ->withTimestamps();
+    }
+
     public function ownedTenants(): HasMany
     {
         return $this->hasMany(Tenant::class, 'owner_id');
     }
 
-    // FILAMENT: acceso al panel
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->hasRole('Superadmin');
+        return $this->hasAnyRole('Superadmin', 'Admin', 'Employee');
     }
 
-    // FILAMENT MULTITENANCY
-    public function getTenants(): Collection
+    public function paymentsgateways(): HasMany
     {
-        return $this->tenants;
+        return $this->hasMany(PaymentGateway::class);
     }
 
-    public function canAccessTenant(Model $tenant): bool
+
+     public function currentTenant()
     {
-        return $this->tenants()->whereKey($tenant)->exists();
+        if ($this->tenant_id) {
+            return Tenant::find($this->tenant_id);
+        }
+        
+        // Para usuarios que pueden tener múltiples tenants
+        return $this->tenants()->first();
     }
+
+     public function isSuperAdmin(): bool
+    {
+        return $this->hasRole('Superadmin') && is_null($this->tenant_id);
+    }
+    
+    // Determinar si es admin de tenant
+    public function isTenantAdmin(): bool
+    {
+        return $this->hasRole('Admin');
+    }
+    
+    // Determinar si es empleado
+    public function isEmployee(): bool
+    {
+        return $this->hasRole('Employee');
+    }
+
 }

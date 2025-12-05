@@ -8,7 +8,6 @@ use Stancl\Tenancy\Database\Models\Tenant;
 
 return [
     'tenant_model' => App\Models\Tenant::class,
-    'tenant_database_connection_name' => null,
     'id_generator' => Stancl\Tenancy\UUIDGenerator::class,
 
     'domain_model' => Domain::class,
@@ -42,6 +41,10 @@ return [
      */
     'database' => [
         'central_connection' => env('DB_CONNECTION', 'central'),
+        'tenant_connection' => env('DB_CONNECTION', 'mysql'),
+        'tenant_connection_name' => null,
+
+        'based_on' => 'domain',
 
         /**
          * Connection used as a "template" for the dynamically created tenant database connection.
@@ -180,7 +183,9 @@ return [
      * enabled. But it may be useful to disable them if you use external
      * storage (e.g. S3 / Dropbox) or have a custom asset controller.
      */
-    'routes' => true,
+    'routes' => [
+        'path' => base_path('routes/tenant.php'),
+    ],
 
     /**
      * Parameters used by the tenants:migrate command.

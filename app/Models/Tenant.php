@@ -2,15 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Stancl\Tenancy\Database\Models\Tenant as BaseTenant;
+use Stancl\Tenancy\Contracts\TenantWithDatabase;
+use Stancl\Tenancy\Database\Concerns\HasDatabase;
+use Stancl\Tenancy\Database\Concerns\HasDomains;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Tenant extends Model
+class Tenant extends BaseTenant implements TenantWithDatabase
 {
-    use HasFactory;
+    use HasDatabase, HasDomains;
 
     protected $fillable = [
         'owner_id',
@@ -18,29 +20,68 @@ class Tenant extends Model
         'rif',
         'domain',
         'slug',
+        'data'
     ];
 
-    // usuarios pertenecientes
-    public function users(): BelongsToMany
+     protected $casts = [
+        'data' => 'array',
+    ];
+
+    public $incrementing = false;
+    
+    protected $keyType = 'string';
+
+    public function user(): HasMany
     {
-        return $this->belongsToMany(User::class, 'tenant_user');
+        return $this->hasMany(User::class, 'tenant_id');
     }
 
-    // dueño del tenant
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'tenant_user')
+        ->withPivot('role_in_tenant')
+            ->withTimestamps();
+    }
+
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');
     }
 
-    // pasarelas de pago
     public function paymentGateways(): HasMany
     {
         return $this->hasMany(PaymentGateway::class);
     }
 
-    // pagos del negocio
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public static function getCustomColumns(): array
+    {
+        return [
+            'id',
+            'owner_id',
+            'business_name',
+            'rif',
+            'domain',
+            'slug',
+            'data',
+            'created_at',
+            'updated_at',
+        ];
+    }
+
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($tenant) {
+            // Si no tiene ID, generar uno con UUID
+            if (!$tenant->id) {
+                $tenant->id = (string) \Illuminate\Support\Str::uuid();
+            }
+        });
     }
 }

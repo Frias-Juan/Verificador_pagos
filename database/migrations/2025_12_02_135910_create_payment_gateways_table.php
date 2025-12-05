@@ -13,9 +13,10 @@ return new class extends Migration
     {
         Schema::create('payment_gateways', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('tenant_id');
-            $table->string('name');              // "Pago Móvil", "Zelle", "PayPal"
-            $table->string('code')->unique();    // "PAGOMOVIL", "ZELLE"
+            $table->string('tenant_id');
+            $table->string('name');    
+            $table->string('api_key');          // "Pago Móvil", "Zelle", "PayPal"
+            $table->string('code')->unique()->nullable();    // "PAGOMOVIL", "ZELLE"
             $table->decimal('fee_percentage', 5, 2)->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();

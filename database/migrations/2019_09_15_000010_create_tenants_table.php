@@ -16,12 +16,18 @@ class CreateTenantsTable extends Migration
     public function up(): void
     {
         Schema::create('tenants', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('owner_id')->constrained('users')->cascadeOnDelete();
+            $table->string('id')->primary();
+            $table->unsignedBigInteger('owner_id');
+             $table->foreign('owner_id')
+                ->references('id')
+                ->on('users')
+                ->onDelete('cascade');
             $table->string('business_name');
+            $table->unsignedBigInteger('payment_gateways_id')->nullable();
             $table->string('rif')->unique()->nullable();
             $table->string('domain')->nullable();
-            $table->string('slug')->unique();
+            $table->string('slug')->unique()->nullable();
+            $table->json('data')->nullable();
             $table->timestamps();
         });
     }
