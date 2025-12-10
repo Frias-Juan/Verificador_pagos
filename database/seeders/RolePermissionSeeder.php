@@ -2,10 +2,13 @@
 
 namespace Database\Seeders;
 
+use App\Models\Payment;
+use App\Models\PaymentGateway;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 use Psy\Util\Str;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -24,86 +27,124 @@ class RolePermissionSeeder extends Seeder
             'password' => bcrypt('1234'),
             'tenant_id' => null
         ]);
-
+        
         $admin = User::factory()->create([
             'name' => 'Juan',
             'lastname' => 'Frias',
             'email' => 'juanfrias@test.com',
             'password' => bcrypt('1234'),
-            'tenant_id' => null
         ]);
 
+    $tenant = Tenant::create([
+            'owner_id' => $admin->id,
+            'business_name' => 'Panaderia la floresta',
+            'rif' => 'J-12345678-9',
+            'slug' => 'panaderia-floresta',
+        ]);
 
-        $superadminrole = Role::firstOrCreate(['name' => 'Superadmin', 'guard_name' => 'web']);
-        $adminrole = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
-        $employeerole = Role::firstOrCreate(['name' => 'Employee', 'guard_name' => 'web']);
+        $admin->tenant_id = $tenant->id;
+        $admin->save();
 
-        $permissions = [
-            // Superadmin permissions
-            'manage_users',
-            'manage_employees',
-            'view_any_tenant',
-            'create_tenant',
-            'update_tenant',
-            'delete_tenant',
-            
-            // Tenant Admin permissions
-            'manage_payment_gateways',
-            'manage_employees',
-            'view_payments',
-            'verify_payments',
-            'export_payments',
-            
-            // Employee permissions (solo lectura)
-            'view_payment_gateways',
-            'view_payments_readonly',
-        ];
-
-        foreach ($permissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
+        $roles = ['Superadmin', 'Admin', 'Employee'];
+        foreach($roles as $roleName)
+        {
+            Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
         }
-        $superadminrole->givePermissionTo(Permission::all());
-        
-        $adminrole->givePermissionTo([
-            'manage_payment_gateways',
-            'manage_employees',
-            'view_payments',
-            'verify_payments',
-            'export_payments',
-        ]);
 
-        $employeerole->givePermissionTo([
-            'view_payment_gateways',
-            'view_payments_readonly',
-            ]);
-
-        //Sincronizar rol
         $superadmin->assignRole('Superadmin');
         $admin->assignRole('Admin');
 
-        // CREAR TENANT - MANUALMENTE CON UUID
-        
-        $tenant = Tenant::create([
-            'owner_id' => $admin->id,
-            'business_name' => 'Negocio de Juan Frias',
-            'rif' => 'J-12345678-9',
-            'slug' => 'empresa-juan',
-            'data' => ['plan' => 'premium'],
-        ]);
+        $admin->tenants()->attach($admin->tenant_id, ['role_in_tenant' => 'admin']);
+
+        $employee = User::create([
+        'name' => 'Carlos',
+        'lastname' => 'Marquez',
+        'email' => 'carlosempleado@panaderia.com',
+        'password' => bcrypt('1234'),
+        'tenant_id' => $tenant->id,
+    ]);
+        $employee->assignRole('Employee');
 
         $tenantId = $tenant->id;
 
-        // Crear dominio
-        $tenant->domains()->create([
-            'domain' => 'empresa-juan.test',
-            'tenant_id' => $tenantId, // <-- Asegurar mismo ID
-        ]);
+     $gatewayData = [
+            'tenant_id' => $tenantId,
+            'name' => 'Pago Móvil - Banco de Venezuela',
+            'api_key' => 'bdv_pm_api_' . bin2hex(random_bytes(8)),
+            'code' => 'BDV_PM',
+            'fee_percentage' => 0,
+            'is_active' => true,
+        ];
 
-        // Actualizar usuario
-        $admin->tenant_id = $tenantId;
-        $admin->save();
+        // Crear el gateway directamente
+        PaymentGateway::firstOrCreate(
+            [
+                'code' => $gatewayData['code'], 
+                'tenant_id' => $tenantId
+            ],
+            $gatewayData
+        );
 
-        // Tabla pivote
-        $admin->tenants()->attach($tenantId, ['role_in_tenant' => 'admin']);
+        $bdvGateway = PaymentGateway::where('code', 'BDV_PM')
+            ->where('tenant_id', $tenantId)
+            ->first();
+        
+        if (!$bdvGateway) {
+            $this->command->error('❌ No se encontró el gateway BDV_PM');
+            return;
+        }
+        
+        $payments = [
+            [
+                'tenant_id' => $tenantId,
+                'payment_gateway_id' => PaymentGateway::where('code', 'BDV_PM')->first()->id,
+                'amount' => 150.75,
+                'payment_date' => now()->subDays(3),
+                'remitter' => 'Juan Pérez',
+                'phone_number' => '+584123456789',
+                'reference' => 123456,
+                'bank' => 'Banco de Venezuela',
+                'verified' => true,
+                'verified_on' => now()->subDays(2),
+                'status' => 'verified',
+                'notification_source' => 'sms',
+                'notification_data' => json_encode([
+                    'raw_message' => 'BDV: PAGO MOVIL RECIBIDO. MONTO: 150.75. REF: 123456. DE: JUAN PEREZ',
+                    'parsed_amount' => '150.75',
+                    'parsed_reference' => '123456',
+                    'received_at' => now()->subDays(3)->toDateTimeString(),
+                ]),
+            ],
+                [
+                'tenant_id' => $tenantId,
+                'payment_gateway_id' => PaymentGateway::where('code', 'BDV_PM')->first()->id,
+                'amount' => 200.00,
+                'payment_date' => now()->subHours(2),
+                'remitter' => 'Luis García',
+                'phone_number' => '+584147258369',
+                'reference' => 456789,
+                'bank' => 'Banco de Venezuela',
+                'verified' => false,
+                'verified_on' => null,
+                'status' => 'pending_verification',
+                'notification_source' => 'sms',
+                'notification_data' => json_encode([
+                    'raw_message' => 'BDV: PAGO MOVIL POR 200.00 BS. REF: 456789. DE: LUIS GARCIA. FECHA: ' . now()->subHours(2)->format('d/m/Y H:i'),
+                    'parsed_amount' => '200.00',
+                    'parsed_reference' => '456789',
+                    'received_at' => now()->subHours(2)->toDateTimeString(),
+                ]),
+            ]
+            ];
+
+            foreach ($payments as $paymentData) {
+    $exists = Payment::where('tenant_id', $tenantId)
+        ->where('reference', $paymentData['reference'])
+        ->exists();
+    
+    if (!$exists) {
+        Payment::create($paymentData);
+    } 
     }
+}
 }

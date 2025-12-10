@@ -35,14 +35,8 @@ class UsersResource extends Resource
                             ->searchable()
                             ->required(),
                             
-                        Forms\Components\Select::make('permissions')
-                            ->label('Permisos')
-                            ->relationship('permissions', 'name')
-                            ->multiple()
-                            ->preload()
-                            ->searchable()
-                            ->required(),
-                    ])->columns(2),
+                        
+                    ]),
 
                 Forms\Components\Section::make('Información Personal')
                     ->schema([

@@ -84,4 +84,18 @@ class Tenant extends BaseTenant implements TenantWithDatabase
             }
         });
     }
+
+    protected static function booted()
+    {
+        static::created(function ($tenant) {
+            if (request()->has('owner_id')) {
+                $ownerId = request('owner_id');
+
+                \App\Models\User::where('id', $ownerId)->update([
+                    'tenant_id' => $tenant->id,
+                ]);
+            }
+        });
+    }
+
 }

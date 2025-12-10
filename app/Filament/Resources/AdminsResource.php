@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\AdminsResource\Pages;
 use App\Models\Tenant;
 use Filament\Forms;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -61,8 +62,8 @@ class AdminsResource extends Resource
                             )
                             ->searchable()
                             ->preload()
-                            ->required()
-                            ->createOptionForm([
+                            ->required(),
+                            /*->createOptionForm([
                                 Forms\Components\TextInput::make('name')
                                     ->label('Nombre')
                                     ->required(),
@@ -85,26 +86,11 @@ class AdminsResource extends Resource
                                 ]);
                                 $user->assignRole('Admin');
                                 return $user->id;
-                            }),
+                            }),*/
+                    TextInput::make('domains')
+                    ->label('Dominio')
+                    ->placeholder('(Opcional)')
                     ])->columns(2),
-                    
-                Forms\Components\Section::make('Configuración del Dominio')
-                    ->collapsible()
-                    ->schema([
-                        Forms\Components\Repeater::make('domains')
-                            ->relationship('domains')
-                            ->schema([
-                                Forms\Components\TextInput::make('domain')
-                                    ->label('Dominio')
-                                    ->placeholder('mi-negocio.tuapp.com')
-                                    ->helperText('Dominio para acceder al negocio'),
-                            ])
-                            ->label('Dominios Asociados')
-                            ->defaultItems(1)
-                            ->collapsible()
-                            ->itemLabel(fn (array $state): ?string => $state['domain'] ?? 'Nuevo dominio'),
-                    ]),
-                    
             ]);
     }
 
@@ -135,7 +121,7 @@ class AdminsResource extends Resource
                     ->searchable()
                     ->toggleable(),
                     
-                Tables\Columns\TextColumn::make('domains.domain')
+                Tables\Columns\TextColumn::make('domains')
                     ->label('Dominios')
                     ->badge()
                     ->color('success')

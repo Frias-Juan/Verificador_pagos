@@ -20,7 +20,7 @@ return new class extends Migration
             $table->date('payment_date');
             $table->string('remitter');
             $table->string('phone_number')->nullable();
-            $table->integer('reference');
+            $table->string('reference');
             $table->string('bank');
             
             // Datos de notificación (para SMS automático)
@@ -28,15 +28,12 @@ return new class extends Migration
             $table->string('notification_source')->nullable(); // sms, manual, email
             
             // Estado y verificación
-            $table->string('status')->default('pending'); // pending, pending_verification, verified, rejected
+            $table->string('status')->default('pending'); 
             $table->boolean('verified')->default(false);
             $table->date('verified_on')->nullable();
-            $table->unsignedBigInteger('verified_by')->nullable();
             
-            // Timestamps
             $table->timestamps();
-            
-            // Llaves foráneas
+
             $table->foreign('payment_gateway_id')
                   ->references('id')
                   ->on('payment_gateways')

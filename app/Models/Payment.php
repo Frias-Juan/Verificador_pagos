@@ -16,8 +16,8 @@ class Payment extends Model
         'payment_gateway_id',
         'amount',
         'payment_date',
-        'remitter', // Cambiado de 'reminent'
-        'phone_number', // Nuevo
+        'remitter',
+        'phone_number', 
         'reference',
         'bank',
         'verified',
@@ -52,7 +52,7 @@ class Payment extends Model
         return $this->belongsTo(Tenant::class, 'tenant_id', 'id');
     }
 
-    public function gateway(): BelongsTo
+    public function payment_gateway(): BelongsTo
     {
         return $this->belongsTo(PaymentGateway::class, 'payment_gateway_id');
     }
