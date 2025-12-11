@@ -17,14 +17,14 @@ class CreateTenantsTable extends Migration
     {
         Schema::create('tenants', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->unsignedBigInteger('owner_id');
+            $table->unsignedBigInteger('owner_id')->nullable();
              $table->foreign('owner_id')
                 ->references('id')
                 ->on('users')
                 ->onDelete('cascade');
             $table->string('business_name');
             $table->unsignedBigInteger('payment_gateways_id')->nullable();
-            $table->string('rif')->unique()->nullable();
+            $table->string('address')->nullable();
             $table->string('domain')->nullable();
             $table->string('slug')->unique()->nullable();
             $table->json('data')->nullable();

@@ -13,12 +13,11 @@ return new class extends Migration
     {
         Schema::create('payment_gateways', function (Blueprint $table) {
             $table->id();
-            $table->string('tenant_id');
+            $table->string('tenant_id')->nullable();
             $table->string('name');    
-            $table->string('api_key');          // "Pago Móvil", "Zelle", "PayPal"
-            $table->string('code')->unique()->nullable();    // "PAGOMOVIL", "ZELLE"
-            $table->decimal('fee_percentage', 5, 2)->nullable();
-            $table->boolean('is_active')->default(true);
+            $table->string('api_key')->nullable();          // "Pago Móvil", "Zelle", "PayPal"
+            $table->string('type')->nullable();    // "PAGOMOVIL", "ZELLE"
+            $table->boolean('is_active')->default(true)->nullable();
             $table->timestamps();
             $table->foreign('tenant_id')->references('id')->on('tenants')->onDelete('cascade');
         });

@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\AdminsResource\Pages;
 use App\Models\Tenant;
 use Filament\Forms;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -19,13 +20,13 @@ class AdminsResource extends Resource
     
     protected static ?string $navigationIcon = 'heroicon-o-building-office';
     
-    protected static ?string $navigationLabel = 'Admins';
+    protected static ?string $navigationLabel = 'Negocios';
     
-    protected static ?string $modelLabel = 'Admin Negocio';
+    protected static ?string $modelLabel = 'Negocio';
     
-    protected static ?string $pluralModelLabel = 'Admins Negocios';
+    protected static ?string $pluralModelLabel = 'Negocios';
     
-    protected static ?string $title = 'Gestión de Admins de Negocios';
+    protected static ?string $title = 'Gestión de negocios';
     
     protected static ?string $slug = 'admins-negocios';
 
@@ -34,7 +35,7 @@ class AdminsResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Section::make('Información del Negocio')
-                    ->description('Datos principales del negocio y su administrador')
+                    ->description('Datos principales del negocio')
                     ->schema([
                         Forms\Components\TextInput::make('business_name')
                             ->label('Nombre del Negocio')
@@ -45,11 +46,6 @@ class AdminsResource extends Resource
                                 if (empty($state)) return;
                                 $set('slug', Str::slug($state));
                             }),
-                            
-                        Forms\Components\TextInput::make('rif')
-                            ->label('RIF')
-                            ->maxLength(20)
-                            ->unique(ignoreRecord: true),
                             
                         Forms\Components\Select::make('owner_id')
                             ->label('Propietario')
@@ -89,7 +85,8 @@ class AdminsResource extends Resource
                             }),*/
                     TextInput::make('domains')
                     ->label('Dominio')
-                    ->placeholder('(Opcional)')
+                    ->placeholder('(Opcional)'),
+                    
                     ])->columns(2),
             ]);
     }
@@ -116,11 +113,6 @@ class AdminsResource extends Resource
                     )
                     ->color('primary'),
                     
-                Tables\Columns\TextColumn::make('rif')
-                    ->label('RIF')
-                    ->searchable()
-                    ->toggleable(),
-                    
                 Tables\Columns\TextColumn::make('domains')
                     ->label('Dominios')
                     ->badge()
@@ -128,6 +120,8 @@ class AdminsResource extends Resource
                     ->separator(', ')
                     ->limitList(2)
                     ->toggleable(),
+                Tables\Columns\TextColumn::make('payment_gateway')
+                    ->label('Pasarelas de pago'),    
                     
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Creado')
@@ -200,7 +194,7 @@ class AdminsResource extends Resource
         }
         
         // Tenant Admin solo ve sus propios negocios
-        if (auth()->user()->hasRole('Tenant Admin')) {
+        if (auth()->user()->hasRole('Admin')) {
             return $query->where('owner_id', auth()->id());
         }
         

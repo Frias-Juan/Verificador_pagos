@@ -11,6 +11,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\Relationship;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Auth;
@@ -42,7 +43,6 @@ class PaymentGatewayResource extends Resource
                 : Forms\Components\Hidden::make('tenant_id')
                         ->default($user->tenant_id),
                 Forms\Components\TextInput::make('name')
-                    ->label('Banco')
                     ->required()
                     ->maxLength(255),
                 Forms\Components\TextInput::make('api_key')
@@ -58,6 +58,10 @@ class PaymentGatewayResource extends Resource
                 ->getOptionLabelFromRecordUsing(fn (Model $record) => 
                     "{$record->name} - Cédula: {$record->cedula} - Teléfono: {$record->phone}"
                 )*/
+                Forms\Components\Select::make('code')
+                    ->live()
+                    ->required()
+                    ->label('Pasarela')    
 
         ];
 
@@ -79,7 +83,7 @@ class PaymentGatewayResource extends Resource
                     ->searchable()
                     ->label('Nombre'),
                 Tables\Columns\IconColumn::make('is_active')
-                    ->boolean(),
+                    ->boolean(),  
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

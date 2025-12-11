@@ -3,17 +3,19 @@
 namespace App\Filament\Resources\UsersResource\Pages;
 
 use App\Filament\Resources\UsersResource;
-use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 
 class EditUsers extends EditRecord
 {
     protected static string $resource = UsersResource::class;
 
-    protected function getHeaderActions(): array
+    protected function mutateFormDataBeforeSave(array $data): array
     {
-        return [
-            Actions\DeleteAction::make(),
-        ];
+        // Un admin NO puede convertir a nadie en Superadmin
+        if (auth()->user()->hasRole('Admin') && $data['roles'] === 'Superadmin') {
+            unset($data['roles']);
+        }
+
+        return $data;
     }
 }

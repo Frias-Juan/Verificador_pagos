@@ -9,4 +9,10 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateAdmins extends CreateRecord
 {
     protected static string $resource = AdminsResource::class;
+    protected static ?string $title = 'Registrar un negocio';
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }
