@@ -11,12 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('payment_gateways', function (Blueprint $table) {
+        Schema::create('banks', function (Blueprint $table) {
             $table->id();
-            $table->string('name');    
-            $table->string('api_key')->nullable();          // "Pago Móvil", "Zelle", "PayPal"
-            $table->string('type')->nullable();    // "PAGOMOVIL", "ZELLE"
-            $table->boolean('is_active')->default(true)->nullable();
+            $table->string('name');
             $table->timestamps();
         });
     }
@@ -26,6 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('payment_gateways');
+        Schema::dropIfExists('banks');
     }
 };

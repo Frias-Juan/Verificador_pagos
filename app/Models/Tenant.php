@@ -48,9 +48,9 @@ class Tenant extends BaseTenant implements TenantWithDatabase
         return $this->belongsTo(User::class, 'owner_id');
     }
 
-    public function paymentGateways(): HasMany
+    public function paymentGateways(): BelongsToMany
     {
-        return $this->hasMany(PaymentGateway::class);
+        return $this->belongsToMany(PaymentGateway::class);
     }
 
     public function payments(): HasMany

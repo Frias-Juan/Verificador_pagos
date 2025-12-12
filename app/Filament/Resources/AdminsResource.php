@@ -5,8 +5,6 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\AdminsResource\Pages;
 use App\Models\Tenant;
 use Filament\Forms;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -18,17 +16,13 @@ class AdminsResource extends Resource
 {
     protected static ?string $model = Tenant::class;
     
+    // Etiquetas en español
     protected static ?string $navigationIcon = 'heroicon-o-building-office';
-    
     protected static ?string $navigationLabel = 'Negocios';
-    
     protected static ?string $modelLabel = 'Negocio';
-    
     protected static ?string $pluralModelLabel = 'Negocios';
-    
-    protected static ?string $title = 'Gestión de negocios';
-    
-    protected static ?string $slug = 'admins-negocios';
+    protected static ?string $title = 'Gestión de Negocios';
+    protected static ?string $slug = 'negocios';
 
     public static function form(Form $form): Form
     {
@@ -48,7 +42,7 @@ class AdminsResource extends Resource
                             }),
                             
                         Forms\Components\Select::make('owner_id')
-                            ->label('Propietario')
+                            ->label('Propietario (Admin)')
                             ->relationship(
                                 name: 'owner',
                                 titleAttribute: 'name',
@@ -59,34 +53,23 @@ class AdminsResource extends Resource
                             ->searchable()
                             ->preload()
                             ->required(),
-                            /*->createOptionForm([
-                                Forms\Components\TextInput::make('name')
-                                    ->label('Nombre')
-                                    ->required(),
-                                Forms\Components\TextInput::make('email')
-                                    ->label('Email')
-                                    ->email()
-                                    ->required()
-                                    ->unique(),
-                                Forms\Components\TextInput::make('password')
-                                    ->label('Contraseña')
-                                    ->password()
-                                    ->required()
-                                    ->minLength(8),
-                            ])
-                            ->createOptionUsing(function ($data) {
-                                $user = \App\Models\User::create([
-                                    'name' => $data['name'],
-                                    'email' => $data['email'],
-                                    'password' => bcrypt($data['password']),
-                                ]);
-                                $user->assignRole('Admin');
-                                return $user->id;
-                            }),*/
-                    TextInput::make('domains')
-                    ->label('Dominio')
-                    ->placeholder('(Opcional)'),
-                    
+                            
+                        Forms\Components\TextInput::make('domains')
+                            ->label('Dominio')
+                            ->placeholder('mi-negocio.com (Opcional, separado por comas)'),
+                            
+                        // CAMPO DE PASARELAS (Muchos a Muchos)
+                        Forms\Components\Select::make('paymentGateways')
+                            ->label('Pasarelas de Pago')
+                            ->relationship(
+                                name: 'paymentGateways',
+                                titleAttribute: 'name'
+                            )
+                            ->multiple()
+                            ->preload()
+                            ->searchable()
+                            ->helperText('Selecciona las pasarelas de pago existentes que deseas asociar a este negocio.'),
+
                     ])->columns(2),
             ]);
     }
@@ -106,8 +89,8 @@ class AdminsResource extends Resource
                     ->label('Propietario')
                     ->searchable()
                     ->sortable()
-                    ->description(fn ($record) => $record->owner->email ?? '')
-                    ->url(fn ($record) => $record->owner ? 
+                    ->description(fn (?Tenant $record) => $record?->owner->email ?? '')
+                    ->url(fn (?Tenant $record) => $record?->owner ? 
                         \App\Filament\Resources\UsersResource::getUrl('edit', ['record' => $record->owner_id]) : 
                         null
                     )
@@ -115,38 +98,61 @@ class AdminsResource extends Resource
                     
                 Tables\Columns\TextColumn::make('domains')
                     ->label('Dominios')
+                    ->formatStateUsing(function ($state, ?Tenant $record) {
+                        if ($record === null || empty($state)) {
+                            return null;
+                        }
+                        if (is_array($state)) {
+                            return implode(', ', array_filter($state));
+                        }
+                        return $state;
+                    })
                     ->badge()
                     ->color('success')
                     ->separator(', ')
                     ->limitList(2)
-                    ->toggleable(),
-                Tables\Columns\TextColumn::make('payment_gateway')
-                    ->label('Pasarelas de pago'),    
-                    
+                    ->toggleable()
+                    ->visible(fn (?Tenant $record): bool => 
+                        $record !== null && !empty($record->domains) && 
+                        (is_string($record->domains) || is_array($record->domains))
+                    ),
+
+                // Columna de Pasarelas de Pago
+                Tables\Columns\TextColumn::make('id') 
+                    ->label('Pasarelas de Pago')
+                    ->badge()
+                    ->color('info')
+                    ->formatStateUsing(function ($state, Tenant $record) {
+                        $gateways = $record->paymentGateways;
+                        
+                        if ($gateways->isEmpty()) {
+                            return null;
+                        }
+
+                        return $gateways
+                            ->unique('id') 
+                            ->map(function ($gateway) {
+                                $type = $gateway->type === 'PAGOMOVIL' ? 'Pago Móvil' : ($gateway->type === 'ZELLE' ? 'Zelle' : $gateway->type);
+                                return "{$type}: {$gateway->name}";
+                            })->implode(', ');
+                    })
+                    ->limitList(2)
+                    ->listWithLineBreaks(false), 
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Creado')
                     ->dateTime('d/m/Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                    
-                Tables\Columns\TextColumn::make('updated_at')
-                    ->label('Actualizado')
-                    ->dateTime('d/m/Y')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-
+                // Filtros
             ])
-                            
             ->actions([
                 Tables\Actions\ActionGroup::make([
-                    Tables\Actions\ViewAction::make()
-                        ->icon('heroicon-o-eye'),
-                        
-                    Tables\Actions\EditAction::make()
-                        ->icon('heroicon-o-pencil'),
-                        
+                    Tables\Actions\ViewAction::make(),
+                    Tables\Actions\EditAction::make(),
+                    
                     Tables\Actions\Action::make('impersonate')
                         ->label('Acceder como Admin')
                         ->icon('heroicon-o-arrow-right-on-rectangle')
@@ -156,64 +162,46 @@ class AdminsResource extends Resource
                         ->visible(fn (): bool => auth()->user()->hasRole('Superadmin')),
                         
                     Tables\Actions\DeleteAction::make()
-                        ->icon('heroicon-o-trash')
-                        ->requiresConfirmation()
-                        ->modalHeading('Eliminar Negocio')
-                        ->modalDescription('¿Estás seguro de eliminar este negocio? Esta acción no se puede deshacer.')
-                        ->modalSubmitActionLabel('Sí, eliminar')
-                        ->successNotificationTitle('Negocio eliminado'),
+                        ->visible(fn (): bool => auth()->user()->hasRole('Superadmin')), 
                 ])->icon('heroicon-o-ellipsis-vertical')
-                  ->button()
-                  ->color('gray'),
+                    ->button()
+                    ->color('gray'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
-                        ->requiresConfirmation()
                         ->visible(fn (): bool => auth()->user()->hasRole('Superadmin')),
                 ]),
             ])
-            ->emptyStateActions([
-                Tables\Actions\CreateAction::make()
-                    ->label('Crear Nuevo Negocio')
-                    ->icon('heroicon-o-plus'),
-            ])
-            ->emptyStateDescription('No hay negocios registrados. Crea el primero.')
-            ->emptyStateIcon('heroicon-o-building-office')
-            ->deferLoading()
             ->defaultSort('created_at', 'desc');
     }
 
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery()->with(['owner', 'domains']);
+        $query = parent::getEloquentQuery()->with(['owner', 'paymentGateways']);
         
-        // Superadmin ve todos los negocios
+        // Desactivar el modo estricto si está activado en la configuración
+        if (config('database.connections.mysql.strict') === true) {
+             $query->getConnection()->statement('SET SESSION sql_mode=\'\'');
+        }
+
+        // Agrupación para evitar duplicados en la tabla de registros (filas)
+        $query->select('tenants.*')
+              ->groupBy('tenants.id');
+
+        // Scoping
         if (auth()->user()->hasRole('Superadmin')) {
             return $query;
         }
         
-        // Tenant Admin solo ve sus propios negocios
         if (auth()->user()->hasRole('Admin')) {
             return $query->where('owner_id', auth()->id());
         }
         
-        // Employee no ve negocios
         return $query->whereRaw('1 = 0');
     }
-
-    public static function getRelations(): array
-    {
-        return [
-            // Descomenta si quieres agregar relation managers
-            // \App\Filament\Resources\AdminsResource\RelationManagers\PaymentGatewaysRelationManager::class,
-            // \App\Filament\Resources\AdminsResource\RelationManagers\PaymentsRelationManager::class,
-        ];
-    }
-
     
-   
-    
+    // Métodos de navegación y permisos
     public static function getNavigationBadgeColor(): ?string
     {
         return 'primary';

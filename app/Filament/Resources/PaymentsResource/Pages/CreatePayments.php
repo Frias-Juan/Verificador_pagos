@@ -9,4 +9,5 @@ use Filament\Resources\Pages\CreateRecord;
 class CreatePayments extends CreateRecord
 {
     protected static string $resource = PaymentsResource::class;
+    
 }

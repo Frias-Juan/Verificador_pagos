@@ -8,10 +8,14 @@ use Filament\Resources\Pages\CreateRecord;
 use App\Models\Tenant;
 use Spatie\Permission\Models\Role;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class CreateUsers extends CreateRecord
 {
     protected static string $resource = UsersResource::class;
+
+    // 1. PROPIEDAD PÚBLICA para almacenar el ID del Tenant de forma temporal
+    public ?string $createdTenantId = null; 
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
@@ -23,16 +27,16 @@ class CreateUsers extends CreateRecord
         // LOGICA PARA ADMIN (CREAR TENANT)
         // -------------------------
         if ($roleName === 'Admin') {
-            // 1. Crear el Tenant
+            
             $tenant = Tenant::create([
                 'business_name' => $data['business_name'],
                 'address'       => $data['address'] ?? null,
-                'owner_id'      => null, // Lo actualizaremos en afterCreate
+                'slug'          => Str::slug($data['business_name']),
+                'owner_id'      => null,
             ]);
 
-            // 2. Asignar el ID del nuevo Tenant al usuario a crear
-            $data['tenant_id'] = $tenant->id;
-            
+            $this->createdTenantId = (string) $tenant->id; 
+            $data['tenant_id'] = $this->createdTenantId;
         } 
         
         // -------------------------
@@ -40,16 +44,12 @@ class CreateUsers extends CreateRecord
         // -------------------------
         elseif ($roleName === 'Employee') {
             
-            // Si el creador es Admin, asignación automática a su tenant
             if ($creator && $creator->hasRole('Admin') && $creator->tenant_id) {
                 $data['tenant_id'] = $creator->tenant_id;
             } 
-            // Si el creador es Superadmin, el tenant_id viene del formulario y se mantiene.
         }
 
-        // Limpiamos los campos que no pertenecen a la tabla users
         unset($data['business_name'], $data['address']);
-
         return $data;
     }
 
@@ -57,64 +57,81 @@ class CreateUsers extends CreateRecord
     {
         /** @var \App\Models\User $user */
         $user = $this->record;
-
+        $data = $this->data; 
         $roleName = $user->roles()->first()?->name;
-        $tenantId = $user->tenant_id;
         
-        // Si no tiene tenant ID, no hacemos nada más (ej: Superadmin, o Employee sin asignar)
+        $tenantId = $roleName === 'Admin' ? $this->createdTenantId : $user->tenant_id;
+        
         if (!$tenantId) {
             return;
         }
 
         // ----------------------------------------
-        // ADMIN: Asignar Owner ID y llenar tabla pivote
+        // 1. ADMIN: Asignar Owner ID y llenar tabla pivote (tenant_user)
         // ----------------------------------------
         if ($roleName === 'Admin') {
-            
-            // 1. Asignar Owner ID (si no está asignado)
             $tenant = Tenant::find($tenantId);
+            
             if ($tenant && is_null($tenant->owner_id)) {
                 $tenant->update(['owner_id' => $user->id]);
             }
             
-            // 2. Adjuntar a la tabla pivote como 'owner'
+            // Llena la tabla pivote tenant_user
             $user->tenants()->attach($tenantId, [
                 'role_in_tenant' => 'owner'
             ]);
         }
 
-        // 3. REGISTRAR LA PASARELA DE PAGO MÓVIL
-            
-            if (!empty($this->data['name'])) {
-                
-                PaymentGateway::create([
-                    'tenant_id' => $tenantId,
-                    'name' => $this->data['name'], // Nombre del Banco (Campo 'name')
-                    'type' => 'PAGOMOVIL',                  // Código de la pasarela
-                   // Número de Teléfono (Campo 'api_key')
-                    'is_active' => true,
-                ]);
-            }
-            
-            // Opcional: Limpiamos los campos temporales del array $data después de usarlos
-            unset(
-                $this->data['pm_bank_name'], 
-                $this->data['pm_phone']
-            );
+        // ----------------------------------------
+        // 2. REGISTRAR Y ASOCIAR PASARELA (Many-to-Many)
+        // ----------------------------------------
+        $initialGateways = $data['initial_gateways'] ?? [];
+        $createdGatewaysIds = [];
 
-        // ----------------------------------------
-        // EMPLOYEE: Llenar tabla pivote
-        // ----------------------------------------
-        if ($roleName === 'Employee') {
+        foreach ($initialGateways as $gatewayData) {
             
-            // Adjuntar a la tabla pivote como 'employee'
+            $type = $gatewayData['gateway_type'] ?? null;
+            $name = ($type === 'PAGOMOVIL') 
+                ? ($gatewayData['gateway_name'] ?? null) 
+                : (($type === 'ZELLE') ? ($gatewayData['zelle_name'] ?? null) : null);
+
+            if ($name && $type) {
+                // ⚠️ Se quita el tenant_id del criterio de búsqueda
+                $gateway = PaymentGateway::firstOrCreate(
+                    [
+                        'type' => $type,
+                        'name' => $name,
+                    ],
+                    [
+                        'is_active' => true,
+                    ]
+                );
+                $createdGatewaysIds[] = $gateway->id;
+            }
+        }
+        
+        // ⚠️ NUEVO PASO: Asociar las Pasarelas recién creadas/encontradas al Tenant.
+        // Esto usa la tabla pivote payment_gateway_tenant.
+        if ($roleName === 'Admin' && !empty($createdGatewaysIds)) {
+            $tenant = Tenant::find($tenantId);
+            if ($tenant) {
+                // Sincroniza las pasarelas con el Tenant.
+                $tenant->paymentGateways()->syncWithoutDetaching($createdGatewaysIds); 
+            }
+        }
+        
+        // ----------------------------------------
+        // 3. EMPLOYEE: Llenar tabla pivote (tenant_user)
+        // ----------------------------------------
+        if ($roleName === 'Employee' && $tenantId) {
+            
+            // Llena la tabla pivote tenant_user
             $user->tenants()->attach($tenantId, [
                 'role_in_tenant' => 'employee'
             ]);
         }
     }
     
-    // Opcional: Redirigir al índice después de crear
     protected function getRedirectUrl(): string
     {
         return $this->getResource()::getUrl('index');

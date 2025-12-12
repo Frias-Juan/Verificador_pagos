@@ -23,7 +23,6 @@ class CreateTenantsTable extends Migration
                 ->on('users')
                 ->onDelete('cascade');
             $table->string('business_name');
-            $table->unsignedBigInteger('payment_gateways_id')->nullable();
             $table->string('address')->nullable();
             $table->string('domain')->nullable();
             $table->string('slug')->unique()->nullable();

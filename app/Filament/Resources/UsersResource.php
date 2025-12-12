@@ -12,6 +12,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Get;
+use App\Models\Bank; 
 
 class UsersResource extends Resource
 {
@@ -70,6 +71,7 @@ class UsersResource extends Resource
                     ])
                     ->columns(2),
 
+                // ⚠️ CAMPOS SOLO PARA CAPTURA (Se guardan en CreateUsers.php)
                 Forms\Components\Section::make('Datos del negocio')
                     ->visible(fn(Get $get) => $get('selectedRoleName') === 'Admin')
                     ->schema([
@@ -78,41 +80,65 @@ class UsersResource extends Resource
                             ->required(),
                             
                         Forms\Components\Textarea::make('address')
-                            ->label('Dirección del negocio'),   
+                            ->label('Dirección del negocio'), 
                     ])
                     ->columns(2),
-                Forms\Components\Section::make('Configuración de Pasarela')
-                    // Solo visible si el rol es Admin
+                    
+                Forms\Components\Section::make('Configuración de Pasarelas de Pago Inicial')
                     ->visible(fn(Get $get) => $get('selectedRoleName') === 'Admin')
                     ->schema([
-                        // --- PAGOS MÓVIL (PAGOMOVIL) ---
-                Forms\Components\Fieldset::make('Pago Móvil')
-                    ->schema([
-                Forms\Components\Select::make('name')
-                    ->options([
-                        'Banco de Venezuela' => 'Banco Vzla (BDV)',
-                    ])    
-                    ->label('Banco')
-                    ->required(),
-            ])
-            ->columns(2),
-    ])
-    ->columns(1),
+                        Forms\Components\Repeater::make('initial_gateways') // No es una relación, solo captura data
+                            ->label('Añadir Pasarela de Pago')
+                            ->schema([
+                                
+                                // 1. SELECT PARA EL TIPO DE PASARELA
+                                Forms\Components\Select::make('gateway_type') 
+                                    ->label('Tipo de Pasarela')
+                                    ->options([
+                                        'PAGOMOVIL' => 'Pago Móvil',
+                                        'ZELLE' => 'Zelle',
+                                    ])
+                                    ->live() 
+                                    ->required(),
+
+                                // 2. CAMPO NOMBRE: Condicional basado en el tipo
+
+                                // a) Si es Pago Móvil, mostramos la lista de Bancos
+                                Forms\Components\Select::make('gateway_name') 
+                                    ->label('Nombre del Banco (Pago Móvil)')
+                                    ->options(Bank::pluck('name', 'name'))
+                                    ->required()
+                                    ->hidden(fn(Get $get) => $get('gateway_type') !== 'PAGOMOVIL')
+                                    ->placeholder('Seleccione el banco para Pago Móvil'),
+                                
+                                // b) Si es Zelle, mostramos un campo de texto libre para el nombre de la cuenta
+                                Forms\Components\TextInput::make('zelle_name') 
+                                    ->label('Nombre de la Cuenta (Zelle)')
+                                    ->placeholder('Ej: Cuenta de John Doe')
+                                    ->required()
+                                    ->hidden(fn(Get $get) => $get('gateway_type') !== 'ZELLE'),
+
+                            ])
+                            ->minItems(1)
+                            ->maxItems(5) 
+                            ->addActionLabel('Añadir otra pasarela')
+                            ->columns(3),
+                    ])
+                    ->columns(1),
 
                 Forms\Components\Section::make('Asignar a negocio existente')
                     // Solo visible si el rol es Employee
                     ->visible(fn(Get $get) => $get('selectedRoleName') === 'Employee') 
                     ->schema([
+                        // Si el usuario Employee pertenece a un Tenant, usa tenant_id
                         Forms\Components\Select::make('tenant_id')
                             ->label('Negocio')
-                            ->relationship('tenant', 'business_name')
+                            ->relationship('tenant', 'business_name') // Asumo relación belongsTo en el modelo User
                             ->required(fn ($context, $get) => 
-                                // Requerido solo si el creador es Superadmin
                                 $context === 'create' && auth()->user()->hasRole('Superadmin')
                             )
                             ->hidden(function ($context) use ($employeeRole) {
                                 $creator = auth()->user();
-                                // Ocultar si el creador es un Admin y está creando un Employee
                                 if ($creator && $creator->hasRole('Admin')) {
                                     return true; 
                                 }
@@ -124,13 +150,13 @@ class UsersResource extends Resource
 
     public static function table(Table $table): Table
     {
-        // ... (Tu función table es correcta)
         return $table->columns([
             Tables\Columns\TextColumn::make('name')->label('Nombre')->searchable(),
             Tables\Columns\TextColumn::make('lastname')->label('Apellido')->searchable(),
             Tables\Columns\TextColumn::make('email')->label('Email')->searchable(),
             Tables\Columns\TextColumn::make('roles.name')->label('Rol')->badge(),
-            Tables\Columns\TextColumn::make('tenant.business_name')->label('Negocio'),
+            // Asumo que el modelo User tiene una relación belongsTo llamada 'tenant'
+            Tables\Columns\TextColumn::make('tenant.business_name')->label('Negocio'), 
         ])
         ->actions([
             Tables\Actions\EditAction::make(),
@@ -141,7 +167,7 @@ class UsersResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        // ... (Tu getEloquentQuery es correcta para scoping)
+        // ... (Tu getEloquentQuery)
         $user = auth()->user();
 
         if ($user->hasRole('Superadmin')) {
@@ -149,6 +175,7 @@ class UsersResource extends Resource
         }
 
         if ($user->hasRole('Admin')) {
+            // Se debe revisar si el campo tenant_id existe en la tabla users
             return parent::getEloquentQuery()
                 ->where('tenant_id', $user->tenant_id)
                 ->whereDoesntHave('roles', fn ($q) => $q->where('name', 'Superadmin'));

@@ -22,12 +22,5 @@ class DatabaseSeeder extends Seeder
        /* $banco = PaymentGateway::factory()->create([
             'name' => 'Banco de venezuela',
         ]);*/
-
-        $gateways = PaymentGateway::create([
-            'type' => 'Pago Móvil',
-            'name' => 'Banco Vzla (BDV)'
-        ])
-        ;
-        $gateways->save();
     }
 }

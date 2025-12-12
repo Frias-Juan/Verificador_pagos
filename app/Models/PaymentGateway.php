@@ -6,6 +6,7 @@ use Stancl\Tenancy\Database\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PaymentGateway extends Model
@@ -16,10 +17,7 @@ class PaymentGateway extends Model
     protected $fillable = [
         'name',
         'type',
-        'fee_percentage',
         'is_active',
-        'api_key',
-        'tenant_id',
     ];
 
     public function user(): BelongsTo
@@ -33,9 +31,9 @@ class PaymentGateway extends Model
         return $this->hasMany(Payment::class, 'payment_gateway_id');
     }
 
-    public function tenant()
+    public function tenants(): BelongsToMany
     {
-        return $this->belongsTo(Tenant::class, 'tenant_id');
+        return $this->belongsToMany(Tenant::class);
     }
 
 
