@@ -26,7 +26,7 @@ class EmployeePanelProvider extends PanelProvider
         return $panel
             ->id('employee')
             // ⚠️ RUTA DEL PORTAL: Aquí se accederá el empleado (ej: /verificacion-pagos)
-            ->path('verificacion-pagos') 
+            ->path('employee') 
             ->login() // Habilita el formulario de login para esta ruta
             
             // ⚠️ 1. DISEÑO MÍNIMO
@@ -69,6 +69,7 @@ class EmployeePanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                \App\Http\Middleware\RestrictPanelAccess::class
             ]);
     }
 }
