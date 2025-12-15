@@ -57,7 +57,6 @@ class PaymentGatewayResource extends Resource
 
                         // 2. CAMPO NOMBRE (Condicional basado en el tipo)
                         Forms\Components\Group::make([
-                            // SELECT: Si es Pago Móvil, mostramos la lista de Bancos
                             Forms\Components\Select::make('name') 
                                 ->label('Banco/Nombre de la Cuenta')
                                 ->options(Bank::pluck('name', 'name'))
@@ -80,25 +79,29 @@ class PaymentGatewayResource extends Resource
                             ->default(true),
                     ]),
 
-                // 4. NEGOCIO (Solo visible y editable por Superadmin)
                 Forms\Components\Fieldset::make('Asignación de Negocio')
-                    ->columns(1)
-                    ->schema([
-                        $isSuperadmin 
-                            ? Forms\Components\Select::make('tenant_id')
-                                ->label('Negocio Asignado')
-                                ->relationship(
-                                    name: 'tenant', 
-                                    titleAttribute: 'business_name' 
-                                )
-                                ->required()
-                                ->searchable()
-                                ->preload()
-                                ->native(false)
-                            : Forms\Components\Hidden::make('tenant_id')
-                                ->default($user->tenant_id),
+    ->columns(1)
+    ->schema([
+        // USAMOS UN SELECT MULTIPLE PARA ADJUNTAR TENANTS (Muchos a Muchos)
+        $isSuperadmin 
+            ? Forms\Components\Select::make('tenants') // 👈 Nombre de la función de relación (plural)
+                ->label('Negocios Asignados')
+                ->relationship(
+                    name: 'tenants', // 👈 Debe ser la función tenants() del modelo
+                    titleAttribute: 'business_name' 
+                )
+                ->multiple() 
+                ->required()
+                ->searchable()
+                ->preload()
+                ->native(false)
+            
+            // Si no es Superadmin, no debe poder adjuntar/modificar tenants.
+            // Para el Admin, asumimos que se gestiona a través del Resource de Tenant.
+            : Forms\Components\Placeholder::make('tenant_info')
+                ->content("Esta pasarela se asignará a tu Negocio al crearse.")
                     ])
-                    ->visible($isSuperadmin), // Ocultar sección si no es Superadmin
+                    ->visible($isSuperadmin),
             ]);
     }
 
@@ -142,10 +145,19 @@ class PaymentGatewayResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                // Filtro por Negocio (Solo para Superadmin)
-                Tables\Filters\SelectFilter::make('tenant_id')
-                    ->relationship('tenant', 'business_name')
+                Tables\Filters\SelectFilter::make('tenants') // Nombre genérico para el filtro
                     ->label('Filtrar por Negocio')
+                    ->options(
+                        // Obtener los nombres de todos los Tenants para las opciones del filtro
+                        \App\Models\Tenant::pluck('business_name', 'id')->toArray() 
+                    )
+                    ->query(function (Builder $query, array $data): Builder {
+                        if (!empty($data['value'])) {
+                            // Usamos whereHas para filtrar M:M
+                            $query->whereHas('tenants', fn (Builder $q) => $q->where('tenant_id', $data['value']));
+                        }
+                        return $query;
+                    })
                     ->visible($isSuperadmin),
                     
                 // Filtro por Tipo de Pasarela
@@ -179,19 +191,23 @@ class PaymentGatewayResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $user = Auth::user();
+    
+    $query = parent::getEloquentQuery();
+    
+    if (!$user->hasRole('Superadmin')) {
+        // Scoping M:M: Filtra si la pasarela está ASIGNADA al tenant del usuario actual
+        $tenantId = $user->tenant_id;
         
-        $query = parent::getEloquentQuery();
-        
-        if (!$user->hasRole('Superadmin')) {
-            // Admin normal solo ve sus propios gateways (scoping por tenant_id)
-            $query->where('tenant_id', $user->tenant_id);
-        }
-        
-        return $query;
+        $query->whereHas('tenants', function (Builder $q) use ($tenantId) {
+            $q->where('tenant_id', $tenantId);
+        });
+    }
+    
+    return $query;
     }
 
     // --- DATOS ANTES DE CREAR (Asignación automática de tenant_id si no es Superadmin) ---
-    protected static function mutateFormDataBeforeCreate(array $data): array
+    /*protected static function mutateFormDataBeforeCreate(array $data): array
     {
         $user = Auth::user();
         
@@ -209,7 +225,7 @@ class PaymentGatewayResource extends Resource
         // Aquí asumimos que el valor guardado en el form tiene la clave 'name' con el dato correcto.
 
         return $data;
-    }
+    }*/
 
     public static function getPages(): array
     {

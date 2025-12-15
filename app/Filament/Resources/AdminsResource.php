@@ -10,6 +10,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 class AdminsResource extends Resource
@@ -178,27 +179,15 @@ class AdminsResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery()->with(['owner', 'paymentGateways']);
-        
-        // Desactivar el modo estricto si está activado en la configuración
-        if (config('database.connections.mysql.strict') === true) {
-             $query->getConnection()->statement('SET SESSION sql_mode=\'\'');
-        }
-
-        // Agrupación para evitar duplicados en la tabla de registros (filas)
-        $query->select('tenants.*')
-              ->groupBy('tenants.id');
-
-        // Scoping
-        if (auth()->user()->hasRole('Superadmin')) {
-            return $query;
-        }
-        
-        if (auth()->user()->hasRole('Admin')) {
-            return $query->where('owner_id', auth()->id());
-        }
-        
-        return $query->whereRaw('1 = 0');
+        $user = Auth::user();
+    
+    $query = parent::getEloquentQuery();
+    
+    if (!$user->hasRole('Superadmin') && $user->tenant_id) {
+        $query->where('id', $user->tenant_id);
+    }
+    
+    return $query;
     }
     
     // Métodos de navegación y permisos
@@ -218,24 +207,23 @@ class AdminsResource extends Resource
     
     public static function canCreate(): bool
     {
-        return auth()->user()->hasAnyRole(['Superadmin', 'Admin']);
+        return Auth::user()->hasRole('Superadmin');
     }
     
     public static function canEdit($record): bool
     {
-        if (auth()->user()->hasRole('Superadmin')) {
-            return true;
-        }
-        
-        if (auth()->user()->hasRole('Admin')) {
-            return $record->owner_id === auth()->id();
-        }
-        
-        return false;
+        return Auth::user()->hasRole('Superadmin')|| $record->id === Auth::user()->tenant_id;
     }
     
     public static function canDelete($record): bool
     {
-        return auth()->user()->hasRole('Superadmin');
+        return Auth::user()->hasRole('Superadmin')|| $record->id === Auth::user()->tenant_id;
     }
+
+    public static function canViewAny(): bool
+    {
+        return Auth::user()->can('view_any_tenant::resource');
+    }
+
+
 }

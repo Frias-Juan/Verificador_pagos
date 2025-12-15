@@ -12,7 +12,8 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Get;
-use App\Models\Bank; 
+use App\Models\Bank;
+use Illuminate\Support\Facades\Auth;
 
 class UsersResource extends Resource
 {
@@ -167,27 +168,15 @@ class UsersResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        // ... (Tu getEloquentQuery)
-        $user = auth()->user();
-
-        if ($user->hasRole('Superadmin')) {
-            return parent::getEloquentQuery();
-        }
-
-        if ($user->hasRole('Admin')) {
-            // Se debe revisar si el campo tenant_id existe en la tabla users
-            return parent::getEloquentQuery()
-                ->where('tenant_id', $user->tenant_id)
-                ->whereDoesntHave('roles', fn ($q) => $q->where('name', 'Superadmin'));
-        }
-
-        if ($user->hasRole('Employee')) {
-            return parent::getEloquentQuery()
-                ->where('tenant_id', $user->tenant_id)
-                ->whereDoesntHave('roles', fn ($q) => $q->where('name', 'Superadmin'));
-        }
-
-        return parent::getEloquentQuery()->whereRaw('1=0');
+        $user = Auth::user();
+    
+    $query = parent::getEloquentQuery();
+    
+    if (!$user->hasRole('Superadmin') && $user->tenant_id) {
+        $query->where('tenant_id', $user->tenant_id);
+    }
+    
+    return $query;
     }
 
     public static function getPages(): array
@@ -199,9 +188,40 @@ class UsersResource extends Resource
         ];
     }
 
+    public static function canViewAny(): bool
+    {
+        return Auth::user()->hasRole('Superadmin');
+    }
+
     public static function canCreate(): bool
     {
-        return auth()->user()->hasAnyRole(['Superadmin', 'Admin']);
+        return Auth::user()->can('create_user::resource');
+    }
+
+    public static function canEdit($record): bool
+    {
+        $user = Auth::user();
+    
+    if ($user->hasRole('Superadmin')) {
+        return true;
+    }
+    
+    return $user->can('update_user::resource') 
+           && $record->tenant_id === $user->tenant_id
+           && $record->id !== $user->id;
+    }
+
+    public static function canDelete($record): bool
+    {
+        $user = Auth::user();
+
+    if ($user->hasRole('Superadmin')) {
+        return true;
+    }
+    
+    return $user->can('delete_user::resource')
+           && $record->tenant_id === $user->tenant_id
+           && $record->id !== $user->id;
     }
 
     public static function getNavigationGroup(): ?string

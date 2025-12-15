@@ -138,7 +138,9 @@ class PaymentsResource extends Resource
                 ->icon('heroicon-o-check')
                 ->color('success')
                 ->requiresConfirmation()
-                ->visible(fn (Payment $record) => !$record->verified)
+                ->visible(function (Payment $record) {
+                    return !$record->verified && auth()->user()->can('verify_payment');
+                })
                 ->action(function (Payment $record) {
                     $record->update([
                         'verified' => true,
@@ -150,7 +152,8 @@ class PaymentsResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                    ->visible(fn () => auth()->user()->can('delete_payment::resource')),
                 ]),
             ])
             ->modifyQueryUsing(function (Builder $query) {
@@ -166,8 +169,25 @@ class PaymentsResource extends Resource
     {
         return [
             'index' => Pages\ListPayments::route('/'),
-            'create' => Pages\CreatePayments::route('/create'),
-            'edit' => Pages\EditPayments::route('/{record}/edit'),
         ];
     }
+
+    public static function canViewAny(): bool {
+    return auth()->user()->can('view_any_payment::resource');
+}
+    public static function canCreate(): bool {
+    return false; 
+}
+
+public static function canEdit(Model $record): bool {
+    return false; 
+}
+
+public static function canUpdate(Model $record): bool {
+    return false; 
+}
+
+public static function canDelete(Model $record): bool {
+    return auth()->user()->can('delete_payment::resource');
+}
 }

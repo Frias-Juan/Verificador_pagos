@@ -13,13 +13,14 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Auth;
 use Spatie\Permission\Models\Permission;
 
 class PermissionsResource extends Resource
 {
     protected static ?string $model = Permission::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-shield-check';
 
     public static function form(Form $form): Form
     {
@@ -70,5 +71,15 @@ class PermissionsResource extends Resource
             /*'create' => Pages\CreatePermissions::route('/create'),
             'edit' => Pages\EditPermissions::route('/{record}/edit'),*/
         ];
+    }
+
+    public static function canViewAny(): bool
+    {
+        return Auth::user()->hasRole('Superadmin');
+    }
+
+    public static function canCreate(): bool
+    {
+        return Auth::user()->can('create_user::resource');
     }
 }

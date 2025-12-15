@@ -29,6 +29,7 @@ class Payment extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'reference' => 'string',
         'payment_date' => 'date',
         'verified_on' => 'date',
         'verified' => 'boolean',

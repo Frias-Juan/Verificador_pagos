@@ -2,13 +2,13 @@
 
 namespace App\Providers\Filament;
 
-use App\Models\Tenant;
+use App\Filament\Employees\Pages\Verify_payments;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Http\Middleware\IdentifyTenant;
 use Filament\Pages;
+use Filament\Pages\Auth\Login;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -20,29 +20,24 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
-
-
-class AdminPanelProvider extends PanelProvider
+class EmployeesPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
         return $panel
-            ->default()
-            ->id('admin')
-            ->path('admin')
+            ->id('employees')
+            ->path('employees')
             ->login()
-            ->registration() 
-            ->passwordReset() 
-            ->profile() 
+            ->homeUrl(Verify_payments::class) 
             ->colors([
-                'primary' => Color::Indigo,
+                'primary' => Color::Green,
             ])
-            ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
-            ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
+            ->discoverResources(in: app_path('Filament/Employees/Resources'), for: 'App\\Filament\\Employees\\Resources')
+            ->discoverPages(in: app_path('Filament/Employees/Pages'), for: 'App\\Filament\\Employees\\Pages')
             ->pages([
-                Pages\Dashboard::class,
+                Verify_payments::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
+            ->discoverWidgets(in: app_path('Filament/Employees/Widgets'), for: 'App\\Filament\\Employees\\Widgets')
             ->widgets([
                 Widgets\AccountWidget::class,
             ])
@@ -56,19 +51,11 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
-                IdentifyTenant::class,
             ])
             ->authMiddleware([
                 Authenticate::class,
             ])
-             ->tenantMiddleware([
-                // Middleware específico para recursos tenant
-            ], isPersistent: true)
-            ->navigationGroups([
-                \Filament\Navigation\NavigationGroup::make()
-            ->label('Settings')
-            ->collapsed()
-        ]);
-        
+               
+        ;
     }
 }

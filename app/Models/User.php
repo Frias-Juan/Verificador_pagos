@@ -77,7 +77,6 @@ class User extends Authenticatable implements FilamentUser
             return Tenant::find($this->tenant_id);
         }
         
-        // Para usuarios que pueden tener múltiples tenants
         return $this->tenants()->first();
     }
 
@@ -97,8 +96,5 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->hasRole('Employee');
     }
-    
+
 }
-
-
-

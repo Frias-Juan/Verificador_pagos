@@ -1,9 +1,13 @@
 <?php
 
+use App\Providers\Filament\AdminPanelProvider;
+use App\Providers\Filament\EmployeePanelProvider;
+
 return [
 
     'panels' => [
-    App\Providers\Filament\AdminPanelProvider::class,
+    AdminPanelProvider::class,
+    EmployeePanelProvider::class,
     ],
 
     /*

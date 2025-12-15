@@ -28,40 +28,69 @@ class RolePermissionSeeder extends Seeder
             'tenant_id' => null
         ]);
         
-        $roles = ['Superadmin', 'Admin', 'Employee'];
-        foreach($roles as $roleName)
-        {
-            Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
-        }
-
-        $superadmin->assignRole('Superadmin');
-
-     /*$gatewayData = [
-            'tenant_id' => $tenantId,
-            'name' => 'Pago Móvil - Banco de Venezuela',
-            'api_key' => 'bdv_pm_api_' . bin2hex(random_bytes(8)),
-            'code' => 'BDV_PM',
-            'fee_percentage' => 0,
-            'is_active' => true,
+        $superadminRole = Role::where('name', 'Superadmin')->first();
+        $adminRole = Role::where('name', 'Admin')->first();
+        $employeeRole = Role::where('name', 'Employee')->first();
+        $superadmin->assignRole($superadminRole);
+        $resourcePermissions = [
+            'users', 
+            'payments', 
+            'paymentgateways', 
+            'tenants', 
+            'roles', 
+            'permissions' 
         ];
 
-        // Crear el gateway directamente
-        PaymentGateway::firstOrCreate(
-            [
-                'code' => $gatewayData['code'], 
-                'tenant_id' => $tenantId
-            ],
-            $gatewayData
-        );
+        $actions = ['view_any', 'view', 'create', 'update', 'delete', 'restore', 'force_delete'];
 
-        $bdvGateway = PaymentGateway::where('code', 'BDV_PM')
-            ->where('tenant_id', $tenantId)
-            ->first();
+        $permissionsToCreate = [];
         
-        if (!$bdvGateway) {
-            $this->command->error('❌ No se encontró el gateway BDV_PM');
-            return;
+        // Generar todos los permisos CRUD
+        foreach ($resourcePermissions as $resource) {
+            foreach ($actions as $action) {
+                $permissionsToCreate[] = "{$action}_{$resource}::resource";
+            }
         }
-        */
+        
+        // Permisos específicos que no son CRUD de Filament, como el de "verificar"
+        // Ojo: Si "verificar pagos" es una acción de Filament Table Action, 
+        // Filament lo maneja con 'delete_payment::resource' si es una acción que cambia el estado. 
+        // Usaremos una acción específica:
+        $permissionsToCreate[] = 'verify_payment'; // Permitir verificar pagos
+        
+        // Crear todos los permisos definidos
+        foreach ($permissionsToCreate as $permissionName) {
+            Permission::firstOrCreate(['name' => $permissionName, 'guard_name' => 'web']);
+        }
+
+        Permission::firstOrCreate(['name' => 'view_any_all_resources']); 
+        $superadminRole->syncPermissions(Permission::all()->pluck('name'));
+        
+
+        $adminPermissions = [
+            // Ver Resources (Menú de navegación)
+            'view_any_payment::resource', 
+            'view_any_paymentgateway::resource',
+            'view_tenant::resource',
+            
+            // Acciones Permitidas en Pagos
+            'view_payment::resource',
+            'delete_payment::resource', // Permitido eliminar
+            'verify_payment', // Permitido verificar (acción específica)
+            
+            // Acciones Permitidas en sus propios Resources
+            'view_paymentgateway::resource',
+            'view_tenant::resource',
+            'update_paymentgateway::resource', 
+        ];
+        $adminRole->syncPermissions($adminPermissions);
+
+        $employeePermissions = [
+            'view_payment::resource',
+            'verify_payment', 
+        ];
+        $employeeRole->syncPermissions($employeePermissions);
+    
+
     }
 }
