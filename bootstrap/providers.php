@@ -3,6 +3,6 @@
 return [
     App\Providers\AppServiceProvider::class,
     App\Providers\Filament\AdminPanelProvider::class,
-    App\Providers\Filament\EmployeePanelPanelProvider::class,
+    App\Providers\Filament\EmployeePanelProvider::class,
     App\Providers\TenancyServiceProvider::class,
 ];

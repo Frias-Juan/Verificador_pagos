@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL; // Importa la fachada URL
 use Illuminate\Http\Request; // Importa la clase Request
+use App\Providers\Filament\EmployeePanelProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -13,7 +14,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+       
     }
 
     /**
@@ -25,7 +26,7 @@ class AppServiceProvider extends ServiceProvider
         if (config('app.env') === 'production' || config('app.env') === 'staging') {
             URL::forceScheme('https');
         }
-
+    
         // Esta es la solución específica para ngrok:
         // Confía en todos los proxies para que Laravel sepa que la conexión original era HTTPS
         Request::setTrustedProxies(['*'], Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_X_FORWARDED_PORT);

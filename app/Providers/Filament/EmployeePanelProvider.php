@@ -18,6 +18,7 @@ use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use App\Filament\Pages\VerifyPaymentPage; // Importar la página
+use App\Http\Middleware\IdentifyTenant;
 
 class EmployeePanelProvider extends PanelProvider
 {
@@ -39,7 +40,6 @@ class EmployeePanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Employee/Resources'), for: 'App\\Filament\\Employee\\Resources') // Se puede dejar vacío
             ->discoverPages(in: app_path('Filament/Employee/Pages'), for: 'App\\Filament\\Employee\\Pages') // Se puede dejar vacío
             ->discoverWidgets(in: app_path('Filament/Employee/Widgets'), for: 'App\\Filament\\Employee\\Widgets') // Se puede dejar vacío
-            ->hasTenancy(false) // Deshabilitar tenancy si no lo necesitas aquí
             ->globalSearch(false)
             ->sidebarCollapsibleOnDesktop()
             ->viteTheme('resources/css/filament/employee/theme.css')
@@ -66,10 +66,11 @@ class EmployeePanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                IdentifyTenant::class
             ])
             ->authMiddleware([
                 Authenticate::class,
-                \App\Http\Middleware\RestrictPanelAccess::class
+                \App\Http\Middleware\RestrictPanelAccess::class,
             ]);
     }
 }
