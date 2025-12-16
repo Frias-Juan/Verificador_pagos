@@ -4,9 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\PaymentsResource\Pages;
 use App\Models\Payment;
-use App\Models\PaymentGateway;
 use Filament\Tables\Actions\Action;
-use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -23,55 +21,14 @@ class PaymentsResource extends Resource
     protected static ?string $modelLabel = 'Pago';
     protected static ?string $pluralModelLabel = 'Pagos';
 
+    /**
+     * El formulario se mantiene por si decides usar un ViewAction (Solo lectura)
+     */
     public static function form(Form $form): Form
     {
-        $user = Auth::user();
-        $tenantId = $user->tenant_id;
-        
-        return $form
-            ->schema([
-                // Tenant ID (oculto)
-                Forms\Components\Hidden::make('tenant_id')
-                    ->default($tenantId),
-                
-                // Payment Gateway
-                Forms\Components\Select::make('payment_gateway_id')
-                    ->options(function () use ($tenantId) {
-                        return PaymentGateway::where('tenant_id', $tenantId)
-                            ->pluck('name', 'id')
-                            ->toArray();
-                    })
-                    ->required()
-                    ->label('Pasarela'),
-                
-                // Información básica
-                Forms\Components\TextInput::make('amount')
-                    ->numeric()
-                    ->required()
-                    ->label('Monto'),
-                
-                Forms\Components\DatePicker::make('payment_date')
-                    ->required()
-                    ->label('Fecha de Pago')
-                    ->default(now()),
-                
-                Forms\Components\TextInput::make('remitter')
-                    ->required()
-                    ->label('Remitente'),
-                
-                Forms\Components\TextInput::make('reference')
-                    ->numeric()
-                    ->required()
-                    ->label('Referencia'),
-                
-                Forms\Components\TextInput::make('bank')
-                    ->required()
-                    ->label('Banco'),
-                
-                Forms\Components\Toggle::make('verified')
-                    ->label('Verificado')
-                    ->default(false),
-            ]);
+        return $form->schema([
+           
+        ]);
     }
 
     public static function table(Table $table): Table
@@ -81,46 +38,33 @@ class PaymentsResource extends Resource
                 Tables\Columns\TextColumn::make('reference')
                     ->label('Referencia')
                     ->searchable()
+                    ->copyable()
                     ->sortable(),
                 
+                // Mostramos el nombre del negocio solo al Superadmin
+                Tables\Columns\TextColumn::make('tenant.business_name')
+                    ->label('Negocio')
+                    ->visible(fn() => auth()->user()->hasRole('Superadmin')),
+
                 Tables\Columns\TextColumn::make('payment_gateway.name')
-                    ->label('Pasarela')
-                    ->placeholder('N/A'),
+                    ->label('Pasarela'),
                 
                 Tables\Columns\TextColumn::make('amount')
                     ->label('Monto Bs')
+                    ->money('VES') // Formato de moneda
                     ->sortable(),
                 
-               Tables\Columns\TextColumn::make('remitter')
-    ->label('Emisor')
-    ->getStateUsing(function ($record) {
+                Tables\Columns\TextColumn::make('remitter')
+                    ->label('Emisor')
+                    ->description(fn (Payment $record) => $record->phone_number)
+                    ->searchable()
+                    ->sortable(),
 
-        $name = $record->remitter;
-        $phone = $record->phone_number;
-
-        if ($name && $phone) {
-            return "{$name} ({$phone})";
-        }
-
-        if ($name) {
-            return $name;
-        }
-
-        if ($phone) {
-            return $phone;
-        }
-
-        return 'Desconocido';
-    })
-    ->searchable()
-    ->sortable(),
-
-                
                 Tables\Columns\TextColumn::make('bank')
                     ->label('Banco'),
                 
                 Tables\Columns\TextColumn::make('payment_date')
-                    ->date()
+                    ->date('d/m/Y')
                     ->label('Fecha')
                     ->sortable(),
                 
@@ -130,39 +74,52 @@ class PaymentsResource extends Resource
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('verified')
-                    ->label('Verificado'),
+                    ->label('Filtrar por Verificación'),
             ])
             ->actions([
-                Action::make('verified')
-                ->label('Verificar')
-                ->icon('heroicon-o-check')
-                ->color('success')
-                ->requiresConfirmation()
-                ->visible(function (Payment $record) {
-                    return !$record->verified && auth()->user()->can('verify_payment');
-                })
-                ->action(function (Payment $record) {
-                    $record->update([
-                        'verified' => true,
-                        'verified_on' => now(),
-                        'status' => 'verified',
-                    ]);
-                }),
-                Tables\Actions\DeleteAction::make(),
+                // ACCIÓN PERSONALIZADA: VERIFICAR
+                Action::make('verify')
+                    ->label('Verificar')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    // Coincide con el permiso de tu seeder
+                    ->visible(fn (Payment $record) => !$record->verified && auth()->user()->can('verify_payments'))
+                    ->action(function (Payment $record) {
+                        $record->update([
+                            'verified' => true,
+                            'verified_on' => now(),
+                            'status' => 'verified', // Asegúrate de tener esta columna o quitarla
+                        ]);
+                    })->disabledFormBeforeTransaction(),
+
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn () => auth()->user()->can('delete_payments::resource')),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
-                    ->visible(fn () => auth()->user()->can('delete_payment::resource')),
+                        ->visible(fn () => auth()->user()->can('delete_payments::resource')),
                 ]),
             ])
-            ->modifyQueryUsing(function (Builder $query) {
-                $user = Auth::user();
-                if (!$user->hasRole('Superadmin')) {
-                    $query->where('tenant_id', $user->tenant_id);
-                }
-                return $query;
-            });
+            ->defaultSort('created_at', 'desc');
+    }
+
+    /**
+     * Ajuste de Query para que el Superadmin vea TODO
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = Auth::user();
+
+        if ($user->hasRole('Superadmin')) {
+            return $query; // Sin restricciones
+        }
+
+        // Para los demás, Filament maneja el tenant_id automáticamente si el panel está configurado,
+        // pero esto es un respaldo de seguridad:
+        return $query->where('tenant_id', $user->tenant_id);
     }
 
     public static function getPages(): array
@@ -172,22 +129,21 @@ class PaymentsResource extends Resource
         ];
     }
 
+    // --- POLÍTICAS DE ACCESO ---
+
     public static function canViewAny(): bool {
-    return auth()->user()->can('view_any_payment::resource');
-}
+        return auth()->user()->can('view_any_payments::resource');
+    }
+
     public static function canCreate(): bool {
-    return false; 
-}
+        return false; // Los pagos no se crean manualmente
+    }
 
-public static function canEdit(Model $record): bool {
-    return false; 
-}
+    public static function canEdit(Model $record): bool {
+        return false; // Los pagos no se editan
+    }
 
-public static function canUpdate(Model $record): bool {
-    return false; 
-}
-
-public static function canDelete(Model $record): bool {
-    return auth()->user()->can('delete_payment::resource');
-}
+    public static function canDelete(Model $record): bool {
+        return auth()->user()->can('delete_payments::resource');
+    }
 }

@@ -13,6 +13,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Get;
 use App\Models\Bank;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
 class UsersResource extends Resource
@@ -30,22 +31,19 @@ class UsersResource extends Resource
 
         return $form
             ->schema([
-                Forms\Components\Section::make('Roles y Permisos')
+                Forms\Components\Section::make('Rol')
                     ->schema([
                         Forms\Components\Select::make('roles')
-                            ->label('Rol')
                             ->relationship('roles', 'name')
                             ->required()
                             ->live()
                             ->afterStateUpdated(function ($state, Forms\Set $set) {
-                                // Limpiar tenant_id y actualizar el rol seleccionado
                                 $set('tenant_id', null);
                                 $roleName = $state ? \Spatie\Permission\Models\Role::find($state)?->name : null;
                                 $set('selectedRoleName', $roleName);
                             })
                             ->preload(),
                         
-                        // Campo Hidden para manejar la visibilidad condicional
                         Forms\Components\Hidden::make('selectedRoleName')
                             ->dehydrated(false)
                             ->live()
@@ -54,8 +52,33 @@ class UsersResource extends Resource
                                     $set('selectedRoleName', $record->roles->first()->name);
                                 }
                             }),
-                    ]),
-
+                        ]),
+                        Forms\Components\Section::make('Permisos')
+                    ->schema([
+                        Forms\Components\CheckboxList::make('permissions')
+                                            ->label('Permisos')
+                                            ->relationship(
+                                                'permissions', 
+                                                'name',
+                                                fn (Builder $query) => $query
+                                                    ->where('name', 'like', 'view_any_%') 
+                                                    ->where('name', 'not like', '%role%')
+                                                    ->where('name', 'not like', '%permission%')
+                                            )
+                                            ->columns(2)
+                                            ->bulkToggleable()
+                                            ->getOptionLabelFromRecordUsing(fn ($record) => 
+                                                str($record->name)
+                                                    ->replace('view_any_', '')
+                                                    ->replace('::resource', '')
+                                                    ->replace('_', ' ')
+                                                    ->prepend('Gestionar' . ' ')
+                                                    ->title()
+                                            )
+                                            ->searchable()
+                                            ->bulkToggleable()
+                    
+                            ]),
                 Forms\Components\Section::make('Información Personal')
                     ->schema([
                         Forms\Components\TextInput::make('name')->label('Nombre')->required(),
@@ -72,7 +95,6 @@ class UsersResource extends Resource
                     ])
                     ->columns(2),
 
-                // ⚠️ CAMPOS SOLO PARA CAPTURA (Se guardan en CreateUsers.php)
                 Forms\Components\Section::make('Datos del negocio')
                     ->visible(fn(Get $get) => $get('selectedRoleName') === 'Admin')
                     ->schema([
@@ -88,11 +110,9 @@ class UsersResource extends Resource
                 Forms\Components\Section::make('Configuración de Pasarelas de Pago Inicial')
                     ->visible(fn(Get $get) => $get('selectedRoleName') === 'Admin')
                     ->schema([
-                        Forms\Components\Repeater::make('initial_gateways') // No es una relación, solo captura data
+                        Forms\Components\Repeater::make('initial_gateways') 
                             ->label('Añadir Pasarela de Pago')
                             ->schema([
-                                
-                                // 1. SELECT PARA EL TIPO DE PASARELA
                                 Forms\Components\Select::make('gateway_type') 
                                     ->label('Tipo de Pasarela')
                                     ->options([
@@ -102,9 +122,6 @@ class UsersResource extends Resource
                                     ->live() 
                                     ->required(),
 
-                                // 2. CAMPO NOMBRE: Condicional basado en el tipo
-
-                                // a) Si es Pago Móvil, mostramos la lista de Bancos
                                 Forms\Components\Select::make('gateway_name') 
                                     ->label('Nombre del Banco (Pago Móvil)')
                                     ->options(Bank::pluck('name', 'name'))
@@ -112,7 +129,6 @@ class UsersResource extends Resource
                                     ->hidden(fn(Get $get) => $get('gateway_type') !== 'PAGOMOVIL')
                                     ->placeholder('Seleccione el banco para Pago Móvil'),
                                 
-                                // b) Si es Zelle, mostramos un campo de texto libre para el nombre de la cuenta
                                 Forms\Components\TextInput::make('zelle_name') 
                                     ->label('Nombre de la Cuenta (Zelle)')
                                     ->placeholder('Ej: Cuenta de John Doe')
@@ -128,13 +144,11 @@ class UsersResource extends Resource
                     ->columns(1),
 
                 Forms\Components\Section::make('Asignar a negocio existente')
-                    // Solo visible si el rol es Employee
                     ->visible(fn(Get $get) => $get('selectedRoleName') === 'Employee') 
                     ->schema([
-                        // Si el usuario Employee pertenece a un Tenant, usa tenant_id
                         Forms\Components\Select::make('tenant_id')
                             ->label('Negocio')
-                            ->relationship('tenant', 'business_name') // Asumo relación belongsTo en el modelo User
+                            ->relationship('tenant', 'business_name') 
                             ->required(fn ($context, $get) => 
                                 $context === 'create' && auth()->user()->hasRole('Superadmin')
                             )
@@ -166,17 +180,31 @@ class UsersResource extends Resource
         ]);
     }
 
+    public static function canViewAny(): bool
+    {
+        // Solo el Superadmin puede ver este Resource en el menú
+        return Auth::user()->hasRole('Superadmin');
+    }
+
+    public static function canCreate(): bool
+    {
+        return Auth::user()->hasRole('Superadmin');
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return Auth::user()->hasRole('Superadmin');
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return Auth::user()->hasRole('Superadmin');
+    }
+
     public static function getEloquentQuery(): Builder
     {
-        $user = Auth::user();
-    
-    $query = parent::getEloquentQuery();
-    
-    if (!$user->hasRole('Superadmin') && $user->tenant_id) {
-        $query->where('tenant_id', $user->tenant_id);
-    }
-    
-    return $query;
+        // El Superadmin siempre ve TODOS los usuarios del sistema
+        return parent::getEloquentQuery();
     }
 
     public static function getPages(): array
@@ -186,42 +214,6 @@ class UsersResource extends Resource
             'create' => Pages\CreateUsers::route('/create'),
             'edit' => Pages\EditUsers::route('/{record}/edit'),
         ];
-    }
-
-    public static function canViewAny(): bool
-    {
-        return Auth::user()->hasRole('Superadmin');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Auth::user()->can('create_user::resource');
-    }
-
-    public static function canEdit($record): bool
-    {
-        $user = Auth::user();
-    
-    if ($user->hasRole('Superadmin')) {
-        return true;
-    }
-    
-    return $user->can('update_user::resource') 
-           && $record->tenant_id === $user->tenant_id
-           && $record->id !== $user->id;
-    }
-
-    public static function canDelete($record): bool
-    {
-        $user = Auth::user();
-
-    if ($user->hasRole('Superadmin')) {
-        return true;
-    }
-    
-    return $user->can('delete_user::resource')
-           && $record->tenant_id === $user->tenant_id
-           && $record->id !== $user->id;
     }
 
     public static function getNavigationGroup(): ?string

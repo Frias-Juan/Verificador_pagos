@@ -28,6 +28,7 @@ class EmployeesPanelProvider extends PanelProvider
             ->id('employees')
             ->path('employees')
             ->login()
+            ->authGuard('employees')
             ->homeUrl(Verify_payments::class) 
             ->colors([
                 'primary' => Color::Green,
