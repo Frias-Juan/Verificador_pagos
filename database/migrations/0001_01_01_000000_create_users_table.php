@@ -15,10 +15,11 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('lastname')->nullable();
-            $table->string('type_ident', 5)->nullable();//Para especificar si es: V, E, J, G, P 
+            $table->string('type_ident', 5)->nullable();
             $table->string('cedula', 20)->unique()->nullable(); 
             $table->string('phone')->nullable();
             $table->string('email')->unique();
+            $table->string('status')->default('pending');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();

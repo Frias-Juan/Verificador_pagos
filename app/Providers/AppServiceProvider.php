@@ -30,5 +30,7 @@ class AppServiceProvider extends ServiceProvider
         // Esta es la solución específica para ngrok:
         // Confía en todos los proxies para que Laravel sepa que la conexión original era HTTPS
         Request::setTrustedProxies(['*'], Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_X_FORWARDED_PORT);
+
+        \App\Models\User::observe(\App\Observers\UserObserver::class);
     }
 }

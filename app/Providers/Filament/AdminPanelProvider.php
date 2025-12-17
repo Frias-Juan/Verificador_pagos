@@ -32,6 +32,10 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->registration() 
+            ->databaseNotifications()
+            ->authMiddleware([
+            \App\Http\Middleware\CheckUserStatus::class,
+            ])
             ->passwordReset() 
             ->profile() 
             ->colors([

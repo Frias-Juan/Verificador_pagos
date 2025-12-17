@@ -27,6 +27,7 @@ class User extends Authenticatable implements FilamentUser
         'cedula',
         'phone',
         'password',
+        'status',
         'tenant_id'
     ];
 

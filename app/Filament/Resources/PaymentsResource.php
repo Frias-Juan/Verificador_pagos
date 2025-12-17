@@ -46,19 +46,23 @@ class PaymentsResource extends Resource
                     ->label('Negocio')
                     ->visible(fn() => auth()->user()->hasRole('Superadmin')),
 
-                Tables\Columns\TextColumn::make('payment_gateway.name')
+                Tables\Columns\TextColumn::make('payment_gateway.type')
                     ->label('Pasarela'),
                 
                 Tables\Columns\TextColumn::make('amount')
                     ->label('Monto Bs')
-                    ->money('VES') // Formato de moneda
                     ->sortable(),
                 
                 Tables\Columns\TextColumn::make('remitter')
                     ->label('Emisor')
-                    ->description(fn (Payment $record) => $record->phone_number)
-                    ->searchable()
-                    ->sortable(),
+                    ->state(function (Payment $record): string {
+        return $record->remitter ?: ($record->phone_number ?: 'Sin identificar');
+    })
+    ->description(fn (Payment $record) => $record->remitter ? $record->phone_number : null)
+    ->searchable(['remitter', 'phone_number'])
+    ->sortable()
+    ->color(fn (Payment $record) => ($record->remitter || $record->phone_number) ? null : 'gray')
+    ->placeholder('No provisto'),
 
                 Tables\Columns\TextColumn::make('bank')
                     ->label('Banco'),
@@ -91,7 +95,7 @@ class PaymentsResource extends Resource
                             'verified_on' => now(),
                             'status' => 'verified', // Asegúrate de tener esta columna o quitarla
                         ]);
-                    })->disabledFormBeforeTransaction(),
+                    }),//Action::databaseTransaction() ?
 
                 Tables\Actions\DeleteAction::make()
                     ->visible(fn () => auth()->user()->can('delete_payments::resource')),
