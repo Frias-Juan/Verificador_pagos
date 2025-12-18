@@ -3,37 +3,50 @@
 namespace App\Http\Middleware;
 
 use Closure;
-use Filament\Notifications\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class CheckUserStatus
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     */
-    public function handle(Request $request, Closure $next)
+    public function handle(Request $request, Closure $next): Response
     {
-       if (Auth::check()) {
-        $user = Auth::user();
-
-        // Si está pendiente de aprobación (el Superadmin no ha hecho clic en el botón)
-        if ($user->hasRole('Admin') && $user->status === 'pending') {
-            Auth::logout();
-            return redirect()->route('filament.admin.auth.login')->with('notification', 'Esperando aprobación.');
+        if (!Auth::check()) {
+            return $next($request);
         }
 
-        // Si ya fue aprobado por el Superadmin pero NO ha configurado su negocio
-        if ($user->hasRole('Admin') && $user->status === 'waiting_business' && !$user->tenant_id) {
-            // Evitar bucle infinito de redirección
-            if (!$request->routeIs('filament.admin.pages.setup-business')) {
+        $user = Auth::user();
+
+        if ($request->routeIs('filament.admin.auth.logout')) {
+            return $next($request);
+        }
+
+        // 3. EXCEPCIÓN: Elº Superadmin tiene pase libre total
+        if ($user->hasRole('Superadmin')) {
+            return $next($request);
+        }
+
+        // --- INICIO DEL EMBUDO DE VALIDACIÓN ---
+
+        // PASO A: Validar Aprobación
+        // Si el estatus no es 'approved', lo mandamos a la espera (a menos que ya esté ahí)
+        if ($user->status !== 'approved') {
+            if (!$request->routeIs('espera.aprobacion')) {
+                return redirect()->route('espera.aprobacion');
+            }
+            return $next($request);
+        }
+
+        // PASO B: Validar Registro de Negocio (Tenant)
+        // Si está aprobado pero no tiene tenant_id, lo mandamos a configurar su negocio
+        if (!$user->tenant_id) {
+            // Permitimos que esté en la página de setup o que use Livewire dentro de esa página
+            if (!$request->routeIs('filament.admin.pages.setup-business') && !$request->hasHeader('X-Livewire')) {
                 return redirect()->route('filament.admin.pages.setup-business');
             }
         }
+
+        // Si pasó todas las validaciones, puede continuar a la ruta solicitada
         return $next($request);
     }
-}
 }

@@ -73,6 +73,9 @@ class AdminsResource extends Resource
                     ->label('Pasarelas')
                     ->badge()
                     ->color('info'),
+                 Tables\Columns\IconColumn::make('paymentGateways.is_active')
+                    ->label('Estado')
+                    ->boolean(),    
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

@@ -31,7 +31,8 @@ class RolePermissionSeeder extends Seeder
                 'name' => 'Luis',
                 'lastname' => 'Mujica',
                 'password' => bcrypt('1234'),
-                'tenant_id' => null
+                'tenant_id' => null,
+                'status' => null
             ]
         );
         $superadmin->assignRole($superadminRole);

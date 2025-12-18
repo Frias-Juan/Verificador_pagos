@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('cedula', 20)->unique()->nullable(); 
             $table->string('phone')->nullable();
             $table->string('email')->unique();
-            $table->string('status')->default('pending');
+            $table->string('status')->default('pending')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();

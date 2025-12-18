@@ -2,6 +2,8 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\CustomRegister;
+use App\Filament\Pages\SetupBusiness;
 use App\Models\Tenant;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -31,11 +33,9 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
-            ->registration() 
+            ->registration(CustomRegister::class) 
             ->databaseNotifications()
-            ->authMiddleware([
-            \App\Http\Middleware\CheckUserStatus::class,
-            ])
+            ->databaseNotificationsPolling('30s')
             ->passwordReset() 
             ->profile() 
             ->colors([
@@ -65,6 +65,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                \App\Http\Middleware\CheckUserStatus::class,
             ])
              ->tenantMiddleware([
                 // Middleware específico para recursos tenant
