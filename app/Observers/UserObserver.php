@@ -13,6 +13,9 @@ class UserObserver
 
     public function created(User $user): void
     {
+        if($user->status === 'approved') {
+            return;
+        }
         // Buscamos a los Superadmins
         $superadmins = User::whereHas('roles', fn($q) => $q->where('name', 'Superadmin'))->get();
 
@@ -21,23 +24,27 @@ class UserObserver
                 ->title('Nueva solicitud de Administrador')
                 ->icon('heroicon-o-user-plus')
                 ->iconColor('warning')
-                ->warning() // Esto le da el color de énfasis a la notificación
+                ->warning() 
                 ->body("El usuario {$user->name} {$user->lastname} se ha registrado y espera aprobación.")
-                ->persistent() // Para que no desaparezca sola
+                ->persistent() 
+                ->viewData(['user_id' => $user->id])
                 ->actions([
                     // Botón Aprobar (Verde)
                     NotificationAction::make('aprobar')
                         ->label('Aprobar')
                         ->button()
                         ->color('success')
-                        ->url(route('usuario.aprobar', ['user' => $user->id])),
-
+                        ->url(fn () => route('usuario.aprobar', [
+                            'user' => $user->id, 
+                        ])),
                     // Botón Rechazar (Rojo)
                     NotificationAction::make('rechazar')
                         ->label('Rechazar')
-                        ->link() // Lo ponemos como link para que no compita visualmente con el botón principal
+                        ->link() 
                         ->color('danger')
-                        ->url(route('usuario.rechazar', ['user' => $user->id])),
+                        ->url(fn () => route('usuario.rechazar', [
+                            'user' => $user->id, 
+                        ])),
                 ])
                 ->sendToDatabase($superadmins);
         }

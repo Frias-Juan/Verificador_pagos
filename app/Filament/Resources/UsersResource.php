@@ -13,8 +13,11 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Get;
 use App\Models\Bank;
+use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class UsersResource extends Resource
 {
@@ -174,8 +177,48 @@ class UsersResource extends Resource
             Tables\Columns\TextColumn::make('tenant.business_name')->label('Negocio'), 
         ])
         ->actions([
-            Tables\Actions\EditAction::make(),
-            Tables\Actions\DeleteAction::make()
+           Tables\Actions\Action::make('aprobar')
+                ->label('Aprobar')
+                ->icon('heroicon-o-check-circle')
+                ->color('success')
+                // ESTO ES LO QUE BUSCAS: Solo visible si el estatus es 'pending'
+                ->visible(fn ($record) => $record->status === 'pending')
+                ->action(function ($record) {
+                    $record->update(['status' => 'approved']);
+
+                    // Limpiamos la notificación de la base de datos
+                    DB::table('notifications')
+                        ->where('data', 'like', '%"user_id":' . $record->id . '%')
+                        ->delete();
+
+                    Notification::make()
+                        ->title('Usuario aprobado')
+                        ->success()
+                        ->send();
+                }),
+            Tables\Actions\Action::make('rechazar')
+                ->label('Rechazar')
+                ->icon('heroicon-o-x-circle')
+                ->color('danger')
+                ->visible(fn ($record) => $record->status === 'pending')
+                ->action(function ($record) {
+                    DB::table('notifications')
+                        ->where('data', 'like', '%"user_id":' . $record->id . '%')
+                        ->delete();
+
+                    $record->delete();
+
+                    Notification::make()
+                        ->title('Usuario eliminado')
+                        ->danger()
+                        ->send();
+                }),
+            Tables\Actions\EditAction::make(),        
+        ])
+        ->bulkActions([
+            Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make(),
+                ])
                 ->visible(fn() => auth()->user()->hasRole('Superadmin')),
         ]);
     }

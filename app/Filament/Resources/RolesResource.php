@@ -56,8 +56,11 @@ class RolesResource extends Resource
                 
             ])
             ->bulkActions([
-                //
-            ]);
+            Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make(),
+                ])
+                ->visible(fn() => auth()->user()->hasRole('Superadmin')),
+        ]);
     }
 
     public static function getRelations(): array

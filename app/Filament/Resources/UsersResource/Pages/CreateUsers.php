@@ -19,6 +19,8 @@ class CreateUsers extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        $data['status'] = 'approved';
+        
         $roleId = $data['roles'];
         $roleName = Role::find($roleId)?->name;
         $creator = auth()->user();

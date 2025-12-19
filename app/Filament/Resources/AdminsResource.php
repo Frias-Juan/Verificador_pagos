@@ -58,6 +58,7 @@ class AdminsResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->recordUrl(null)
             ->columns([
                 Tables\Columns\TextColumn::make('business_name')
                     ->label('Negocio')
@@ -67,8 +68,21 @@ class AdminsResource extends Resource
                     
                 Tables\Columns\TextColumn::make('owner.name')
                     ->label('Propietario')
+                    ->getStateUsing(fn ($record) => "{$record->owner->name} {$record->owner->lastname}")
                     ->visible(fn() => auth()->user()->hasRole('Superadmin')), // Solo el SA ve el dueño en la tabla
-                    
+                
+                Tables\Columns\ViewColumn::make('staff')
+    ->label('Empleados')
+    // Asegúrate de que esta ruta sea exacta a donde creaste el archivo .blade
+    ->view('filament.tables.columns.dropdown-staff') 
+    ->getStateUsing(function ($record) {
+        return $record->users()
+            ->role('Employee')
+            ->get()
+            ->map(fn($user) => "{$user->name} {$user->lastname}")
+            ->toArray(); // Esto envía un array ['Nombre 1', 'Nombre 2']
+    }),
+                 
                 Tables\Columns\TextColumn::make('paymentGateways.name')
                     ->label('Pasarelas')
                     ->badge()

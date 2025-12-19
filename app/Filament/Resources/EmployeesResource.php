@@ -35,9 +35,18 @@ class EmployeesResource extends Resource
                         Forms\Components\TextInput::make('name')
                             ->label('Nombre')
                             ->required(),
-                        Forms\Components\Hidden::make('tenant_id')
+                       Forms\Components\Select::make('tenant_id')
+                            ->label('Negocio / Empresa')
+                            ->relationship('tenants', 'business_name') // Relación con el modelo Tenant
+                            ->searchable()
+                            ->preload()
                             ->default(fn () => auth()->user()->tenant_id)
-                            ->required(),
+                            ->required()
+                            // Si el usuario es Admin, ocultamos el selector (porque ya sabemos su tenant)
+                            // Si es Superadmin, lo dejamos visible para que elija el negocio
+                            ->disabled(fn () => !auth()->user()->hasRole('Superadmin'))
+                            ->dehydrated(true)
+                            ->visible(fn() => auth()->user()->hasRole('Superadmin')),
                         Forms\Components\TextInput::make('lastname')
                             ->label('Apellido')
                             ->required(),

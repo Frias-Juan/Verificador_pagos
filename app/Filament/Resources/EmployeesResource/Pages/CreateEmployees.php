@@ -13,6 +13,8 @@ class CreateEmployees extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        $data['status'] = 'approved';
+        
         $admin = auth()->user();
 
        if ($admin->tenant_id) {

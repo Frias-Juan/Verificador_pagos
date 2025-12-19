@@ -111,8 +111,8 @@ class SetupBusiness extends Page implements HasForms
         foreach ($formData['initial_gateways'] as $gatewayData) {
             
             $nombreParaDB = $gatewayData['gateway_type'] === 'PAGOMOVIL' 
-                            ? "Pago Móvil - " . ($gatewayData['gateway_name'] ?? 'S/N') 
-                            : "Zelle - " . ($gatewayData['zelle_name'] ?? 'S/N');
+                            ? ($gatewayData['gateway_name'] ?? 'S/N') 
+                            : ($gatewayData['zelle_name'] ?? 'S/N');
 
             $newGateway = \App\Models\PaymentGateway::create([
                 'name'      => $nombreParaDB,
