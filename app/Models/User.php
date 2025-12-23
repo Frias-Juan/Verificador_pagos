@@ -13,11 +13,12 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Support\Collection;
+use Lab404\Impersonate\Models\Impersonate;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements FilamentUser
 {
-     use HasFactory, Notifiable, HasApiTokens, HasRoles;
+     use HasFactory, Notifiable, HasApiTokens, HasRoles, Impersonate;
 
     protected $fillable = [
         'name',
@@ -63,7 +64,17 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->hasAnyRole('Superadmin', 'Admin');
+        // Si el panel es el de empleados
+    if ($panel->getId() === 'employees') {
+        return $this->hasRole(['Superadmin', 'Admin', 'Employee']) && $this->status === 'approved';
+    }
+    
+    // Si el panel es el de admin
+    if ($panel->getId() === 'admin') {
+        return $this->hasRole(['Superadmin', 'Admin']);
+    }
+
+    return false;
     }
 
     public function paymentsgateways(): HasMany
@@ -96,6 +107,36 @@ class User extends Authenticatable implements FilamentUser
     public function isEmployee(): bool
     {
         return $this->hasRole('Employee');
+    }
+
+    // Añade esto dentro de la clase User
+protected static function booted()
+{
+    static::deleting(function ($user) {
+        // Si el usuario es dueño de negocios (Owner)
+        if ($user->hasRole('Admin') || $user->ownedTenants()->exists()) {
+            
+            // Eliminamos cada negocio del que es dueño
+            $user->ownedTenants->each(function ($tenant) {
+                // Esto disparará el static::deleting en el modelo Tenant
+                // borrando así empleados, pasarelas y pagos.
+                $tenant->delete();
+            });
+        }
+        
+        // Limpiamos sus vínculos en la tabla pivote por si acaso
+        $user->tenants()->detach();
+    });
+}
+
+public function canImpersonate(): bool
+    {
+        return $this->hasRole('Superadmin');
+    }
+
+public function canBeImpersonated(): bool
+    {
+        return !$this->hasRole('Superadmin');
     }
 
 }

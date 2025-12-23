@@ -22,9 +22,11 @@ use Illuminate\Support\Facades\DB;
 class UsersResource extends Resource
 {
     protected static ?string $model = User::class;
-    protected static ?string $navigationLabel = 'Users';
+    protected static ?string $navigationLabel = 'Usuarios';
     protected static ?string $navigationIcon = 'heroicon-o-users';
-    protected static ?string $pluralModelLabel = 'Users';
+    protected static ?string $modelLabel = 'Usuario';
+    protected static ?string $pluralModelLabel = 'Usuarios';
+    protected static ?string $slug = 'usuarios';
 
     public static function form(Form $form): Form
     {
@@ -103,7 +105,8 @@ class UsersResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('business_name')
                             ->label('Nombre del negocio')
-                            ->required(),
+                            ->nullable() // Permite que sea nulo al editar
+            ->required(fn ($context) => $context === 'create'),
                             
                         Forms\Components\Textarea::make('address')
                             ->label('Dirección del negocio'), 
@@ -119,8 +122,7 @@ class UsersResource extends Resource
                                 Forms\Components\Select::make('gateway_type') 
                                     ->label('Tipo de Pasarela')
                                     ->options([
-                                        'PAGOMOVIL' => 'Pago Móvil',
-                                        'ZELLE' => 'Zelle',
+                                        'PAGOMOVIL' => 'Pago Móvil'
                                     ])
                                     ->live() 
                                     ->required(),
@@ -128,18 +130,20 @@ class UsersResource extends Resource
                                 Forms\Components\Select::make('gateway_name') 
                                     ->label('Nombre del Banco (Pago Móvil)')
                                     ->options(Bank::pluck('name', 'name'))
-                                    ->required()
+                                    ->required(fn(Get $get) => $get('gateway_type') === 'PAGOMOVIL')
                                     ->hidden(fn(Get $get) => $get('gateway_type') !== 'PAGOMOVIL')
                                     ->placeholder('Seleccione el banco para Pago Móvil'),
                                 
                                 Forms\Components\TextInput::make('zelle_name') 
                                     ->label('Nombre de la Cuenta (Zelle)')
                                     ->placeholder('Ej: Cuenta de John Doe')
-                                    ->required()
+                                    ->nullable() // Permite que sea nulo al editar
+                                    ->required(fn ($context) => $context === 'create')
                                     ->hidden(fn(Get $get) => $get('gateway_type') !== 'ZELLE'),
 
                             ])
-                            ->minItems(1)
+                            ->minItems(fn ($context) => $context === 'create' ? 1 : 0) // 1 al crear, 0 al editar
+                            ->required(fn ($context) => $context === 'create') // Requerido solo al crear
                             ->maxItems(5) 
                             ->addActionLabel('Añadir otra pasarela')
                             ->columns(3),
@@ -155,6 +159,7 @@ class UsersResource extends Resource
                             ->required(fn ($context, $get) => 
                                 $context === 'create' && auth()->user()->hasRole('Superadmin')
                             )
+                            ->nullable() // Permite que sea nulo al editar
                             ->hidden(function ($context) use ($employeeRole) {
                                 $creator = auth()->user();
                                 if ($creator && $creator->hasRole('Admin')) {
@@ -168,7 +173,9 @@ class UsersResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return $table->columns([
+        return $table
+        ->recordUrl(null)
+        ->columns([
             Tables\Columns\TextColumn::make('name')->label('Nombre')->searchable(),
             Tables\Columns\TextColumn::make('lastname')->label('Apellido')->searchable(),
             Tables\Columns\TextColumn::make('email')->label('Email')->searchable(),
@@ -213,7 +220,8 @@ class UsersResource extends Resource
                         ->danger()
                         ->send();
                 }),
-            Tables\Actions\EditAction::make(),        
+            Tables\Actions\EditAction::make(),
+            Tables\Actions\DeleteAction::make(),        
         ])
         ->bulkActions([
             Tables\Actions\BulkActionGroup::make([

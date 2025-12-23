@@ -26,6 +26,10 @@ class RolesResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
 
+    protected static ?string $modelLabel = 'Rol';
+
+    protected static ?string $pluralModelLabel = 'Roles';
+
     public static function form(Form $form): Form
     {
         return $form
@@ -40,6 +44,7 @@ class RolesResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->recordUrl(null)
             ->columns([
                 TextColumn::make('name')
                 ->label('Nombre')

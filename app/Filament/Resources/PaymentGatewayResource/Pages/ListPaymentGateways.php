@@ -13,7 +13,8 @@ class ListPaymentGateways extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()
+            ->label('Registrar Pasarela de pago'),
         ];
     }
 }

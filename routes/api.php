@@ -1,15 +1,16 @@
 <?php
 
 use App\Http\Controllers\Api\BdvPaymentController;
+use App\Http\Controllers\Api\PaymentNotificationController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\SMSNotificationController;
 use Symfony\Component\HttpFoundation\Request;
 
-Route::post('/payments/bdv/sms', [BdvPaymentController::class, 'receiveSms']);
+Route::post('/payments/notifications/sms', [PaymentNotificationController::class, 'receiveSms']);
 
 
 
-Route::post('/tokens/create', function (Illuminate\Http\Request $request) {
+/*Route::post('/tokens/create', function (Illuminate\Http\Request $request) {
     $request->validate([
         'email' => 'required|email',
         'password' => 'required',
@@ -49,4 +50,4 @@ Route::get('/test', function () {
         'timestamp' => now()->toDateTimeString(),
         'framework' => 'Laravel 11'
     ]);
-});
+});*/

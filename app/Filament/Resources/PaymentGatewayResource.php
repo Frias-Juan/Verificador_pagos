@@ -26,11 +26,6 @@ class PaymentGatewayResource extends Resource
     protected static ?string $pluralModelLabel = 'Pasarelas de Pago';
     protected static ?string $slug = 'pasarelas-pago';
     
-    // Asumiendo que solo los Admins y Superadmins deben ver este menú
-    public static function canViewAny(): bool
-    {
-        return Auth::user()->hasAnyRole(['Superadmin', 'Admin']);
-    }
 
     // --- FORMULARIO (CREAR/EDITAR) ---
     public static function form(Form $form): Form
@@ -48,7 +43,6 @@ class PaymentGatewayResource extends Resource
                             ->label('Tipo de Pasarela')
                             ->options([
                                 'PAGOMOVIL' => 'Pago Móvil',
-                                'ZELLE' => 'Zelle',
                             ])
                             ->live() // Necesario para la lógica condicional del nombre
                             ->required()
@@ -112,6 +106,7 @@ class PaymentGatewayResource extends Resource
         $isSuperadmin = $user->hasRole('Superadmin');
 
         return $table
+            ->recordUrl(null)
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nombre / Banco')
@@ -206,26 +201,19 @@ class PaymentGatewayResource extends Resource
     return $query;
     }
 
-    // --- DATOS ANTES DE CREAR (Asignación automática de tenant_id si no es Superadmin) ---
-    /*protected static function mutateFormDataBeforeCreate(array $data): array
-    {
-        $user = Auth::user();
-        
-        // Si el usuario no es Superadmin, asignamos automáticamente su tenant_id
-        if (!$user->hasRole('Superadmin') && empty($data['tenant_id'])) {
-            $data['tenant_id'] = $user->tenant_id;
-        }
-        
-        // Filament necesita solo uno de los campos 'name' para el guardado. 
-        // Eliminamos el campo nulo para evitar conflictos con el Fieldset condicional en la DB.
-        
-        // Si el tipo es PAGOMOVIL, el campo 'name' tiene el valor, el otro 'name' (Zelle) será null.
-        // Si el tipo es ZELLE, el campo 'name' tiene el valor (TextInput).
-        // NOTA: Si usaste dos campos TextInput distintos, asegúrate de que el valor correcto se asigne a 'name'.
-        // Aquí asumimos que el valor guardado en el form tiene la clave 'name' con el dato correcto.
+    
 
-        return $data;
-    }*/
+    // --- AUTORIZACIÓN ---
+
+    public static function canViewAny(): bool
+    {
+        // El Admin debe tener permiso 'view_any_users::resource' según tu seeder
+        return Auth::user()->hasRole('Admin') || Auth::user()->hasRole('Superadmin');
+    }
+
+    public static function canEdit(Model $record): bool {
+        return false; // Los pagos no se editan
+    }
 
     public static function getPages(): array
     {

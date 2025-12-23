@@ -21,6 +21,10 @@ class PermissionsResource extends Resource
     protected static ?string $model = Permission::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-shield-check';
+    protected static ?string $navigationLabel = 'Permisos';
+    protected static ?string $modelLabel = 'Permiso';
+    protected static ?string $pluralModelLabel = 'Permisos';
+    protected static ?string $slug = 'permisos';
 
     public static function form(Form $form): Form
     {
@@ -33,6 +37,7 @@ class PermissionsResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->recordUrl(null)
             ->columns([
                 TextColumn::make('name')
                 ->label('Nombre')
@@ -44,6 +49,7 @@ class PermissionsResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

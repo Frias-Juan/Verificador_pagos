@@ -2,17 +2,19 @@
 
 namespace App\Services;
 
+use App\Contracts\PaymentParserInterface;
 use DateTime;
 
-class BdvParserService
+class BdvParserService implements PaymentParserInterface
 {
     /**
-     * Procesa un mensaje SMS de Banco de Venezuela y devuelve los datos del pago
+     * Procesa un mensaje de BDV cumpliendo con el contrato universal.
      */
-    public function procesarBdv(string $message): ?array
+    public function parse(string $message): ?array
     {
+        // 1. Validación rápida: ¿Es este mensaje del BDV?
         if (stripos($message, 'Recibiste') === false && stripos($message, 'PagomovilBDV') === false) {
-            return null; // No es un mensaje válido
+            return null;
         }
 
         $banco = "Banco de Venezuela";
@@ -25,13 +27,11 @@ class BdvParserService
         $fecha = date("d-m-y");
         $hora = date("H:i");
 
-        // Detectar formato nuevo (con "de NOMBRE" y "Bs." y número de operación)
+        // Detectar formatos
         $esFormatoNuevo = preg_match('/PagomovilBDV\s+de/i', $message);
-
-        // Detectar formato viejo (con Ref)
         $esFormatoViejo = preg_match('/Ref[:\s]+/i', $message);
 
-        /* FORMATO NUEVO */
+        /* LÓGICA DE EXTRACCIÓN (Tu código original de Regex) */
         if ($esFormatoNuevo) {
             preg_match('/Bs\.?\s*([\d\.,]+)/i', $message, $montoMatch);
             preg_match('/de\s+([A-ZÁÉÍÓÚÑa-záéíóúñ ]+)\s+por/i', $message, $nombreMatch);
@@ -42,15 +42,9 @@ class BdvParserService
             $monto = $montoMatch[1] ?? null;
             $remitente = $nombreMatch[1] ?? null;
             $referencia = $refMatch[1] ?? null;
-
-            if (isset($fechaMatch[1])) {
-                $fecha = $fechaMatch[1];
-            }
-            if (isset($horaMatch[1])) {
-                $hora = $horaMatch[1];
-            }
-        }
-        /* FORMATO VIEJO */
+            $fecha = $fechaMatch[1] ?? $fecha;
+            $hora = $horaMatch[1] ?? $hora;
+        } 
         elseif ($esFormatoViejo) {
             preg_match('/Bs\.?\s*([\d\.,]+)/i', $message, $montoMatch);
             preg_match('/del\s+([0-9-]+)/i', $message, $telefonoMatch);
@@ -61,41 +55,36 @@ class BdvParserService
             $monto = $montoMatch[1] ?? null;
             $telefono = $telefonoMatch[1] ?? null;
             $referencia = $refMatch[1] ?? null;
-
-            if (isset($fechaMatch[1])) {
-                $fecha = $fechaMatch[1];
-            }
-            if (isset($horaMatch[1])) {
-                $hora = $horaMatch[1];
-            }
+            $fecha = $fechaMatch[1] ?? $fecha;
+            $hora = $horaMatch[1] ?? $hora;
         }
 
-        // Si no se pudo detectar la referencia, ignorar
+        // Si no hay referencia, no podemos validar el pago
         if (!$referencia) {
             return null;
         }
 
-        // Convertir monto latino a float
-        $monto = $this->convertirFormatoLatinoAFloat($monto);
-
-        // Formatear fecha para SQL
+        // Normalización de datos
+        $montoFloat = $this->convertirFormatoLatinoAFloat($monto);
+        
         $fechaSQL = DateTime::createFromFormat('d-m-y H:i', "$fecha $hora");
         if (!$fechaSQL) {
-            $fechaSQL = new DateTime(); // fallback
+            $fechaSQL = new DateTime();
         }
 
+        // RETORNO ESTANDARIZADO (Lo que el Manager espera recibir)
         return [
-            'remitente'  => $remitente ?? '',
-            'monto'      => $monto ?? 0,
-            'referencia' => $referencia,
+            'remitente'    => $remitente ?? '',
+            'monto'        => $montoFloat ?? 0,
+            'referencia'   => $referencia,
             'phone_number' => $telefono,
-            'fecha'      => $fechaSQL->format('Y-m-d H:i:s'),
-            'banco'      => $banco,
+            'fecha'        => $fechaSQL->format('Y-m-d H:i:s'),
+            'banco'        => $banco,
         ];
     }
 
     /**
-     * Convierte un monto en formato latino (1.234,56) a float
+     * Helper privado para manejar los montos venezolanos.
      */
     private function convertirFormatoLatinoAFloat(?string $valor): ?float
     {

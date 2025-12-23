@@ -8,18 +8,19 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Actions\Action as ActionsAction;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Model;
-
+use Filament\Tables\Actions\Action; 
 class AdminsResource extends Resource
 {
     protected static ?string $model = Tenant::class;
     
     protected static ?string $navigationIcon = 'heroicon-o-building-office';
-    protected static ?string $navigationLabel = 'Mi Negocio'; // En singular para el Admin
+    protected static ?string $navigationLabel = 'Negocio'; 
     protected static ?string $modelLabel = 'Negocio';
     protected static ?string $pluralModelLabel = 'Negocios';
     protected static ?string $slug = 'negocios';
@@ -71,16 +72,15 @@ class AdminsResource extends Resource
                     ->getStateUsing(fn ($record) => "{$record->owner->name} {$record->owner->lastname}")
                     ->visible(fn() => auth()->user()->hasRole('Superadmin')), // Solo el SA ve el dueño en la tabla
                 
-                Tables\Columns\ViewColumn::make('staff')
+                Tables\Columns\TextColumn::make('staff')
     ->label('Empleados')
-    // Asegúrate de que esta ruta sea exacta a donde creaste el archivo .blade
-    ->view('filament.tables.columns.dropdown-staff') 
+    ->view('filament.tables.columns.accordion-staff')
     ->getStateUsing(function ($record) {
         return $record->users()
             ->role('Employee')
             ->get()
             ->map(fn($user) => "{$user->name} {$user->lastname}")
-            ->toArray(); // Esto envía un array ['Nombre 1', 'Nombre 2']
+            ->toArray();
     }),
                  
                 Tables\Columns\TextColumn::make('paymentGateways.name')
@@ -93,13 +93,38 @@ class AdminsResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                // Botón de Impersonate solo para Superadmin
+                Tables\Actions\DeleteAction::make(),
+                
+               
                 Tables\Actions\Action::make('impersonate')
-                    ->label('Entrar')
-                    ->icon('heroicon-o-arrow-right-on-rectangle')
-                    ->color('success')
-                    ->url(fn (Tenant $record) => url('/admin/switch-tenant/' . $record->id))
-                    ->visible(fn () => auth()->user()->hasRole('Superadmin')),
+                    ->label('Entrar como')
+                    ->icon('heroicon-o-finger-print')
+                    ->color('warning')
+                    ->visible(fn ($record) => 
+                        auth()->user()->hasRole('Superadmin') && 
+                        $record->owner !== null && 
+                        method_exists($record->owner, 'canBeImpersonated') && 
+                        $record->owner->canBeImpersonated()
+                    )
+                    ->action(function ($record) {
+                        // 1. Guardamos al usuario actual (Superadmin)
+                        $superadmin = auth()->user();
+
+                        // 2. Iniciamos la suplantación del dueño
+                        $superadmin->impersonate($record->owner);
+
+                        // 3. Limpiamos los hashes de sesión de forma manual y segura
+                        // Usamos nombres de clave estándar de Laravel/Filament
+                        session()->forget([
+                            'password_hash_web',
+                            'password_hash_filament',
+                            'password_hash_sanctum',
+                        ]);
+
+                        // 4. Redirigir al dashboard
+                        // Usamos la ruta hardcoded si config() falla para asegurar el tiro
+                        return redirect()->to('/admin');
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

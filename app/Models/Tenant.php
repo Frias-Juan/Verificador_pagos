@@ -96,6 +96,21 @@ class Tenant extends BaseTenant implements TenantWithDatabase
                 ]);
             }
         });
+
+       static::deleting(function ($tenant) {
+        // 1. Borrar físicamente los pagos asociados al negocio
+       $tenant->payments()->delete();
+
+        // 2. Borrar físicamente las pasarelas de pago asociadas a este negocio
+        // Usamos cada modelo para que se borre el registro real, no solo la relación
+        $tenant->paymentGateways->each->delete();
+
+        // 3. Borrar a los empleados exclusivos
+        $tenant->user()->role('Employee')->get()->each->delete();
+
+        // 4. Limpiar la tabla pivote de usuarios por seguridad
+        $tenant->users()->detach();
+    });
     }
 
 }

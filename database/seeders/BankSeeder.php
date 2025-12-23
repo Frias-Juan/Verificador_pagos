@@ -13,7 +13,8 @@ class BankSeeder extends Seeder
      */
     public function run(): void
     {
-        Bank::updateOrCreate(['name' => 'Banco de Venezuela']);
+        Bank::updateOrCreate(['name' => 'Banco de Venezuela (BDV)']);
         Bank::updateOrCreate(['name' => 'Banco Nacional de Crédito (BNC)']);
+        Bank::updateOrCreate(['name' => 'Banesco']);
     }
 }
