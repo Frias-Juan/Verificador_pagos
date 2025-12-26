@@ -85,20 +85,37 @@ class UsersResource extends Resource
                     
                             ]),
                 Forms\Components\Section::make('Información Personal')
-                    ->schema([
-                        Forms\Components\TextInput::make('name')->label('Nombre')->required(),
-                        Forms\Components\TextInput::make('lastname')->label('Apellido')->required(),
-                        Forms\Components\TextInput::make('email')->label('Correo')->email()->required()->unique(ignoreRecord: true),
-                        Forms\Components\TextInput::make('cedula')->label('Cédula/RIF')->required()->unique(),
-                        Forms\Components\TextInput::make('phone')->label('Teléfono')->mask('9999-9999999')->required()->unique(),
-
-                        Forms\Components\TextInput::make('password')
-                            ->password()
-                            ->label('Contraseña')
-                            ->required(fn ($context) => $context === 'create')
-                            ->dehydrated(fn ($state) => filled($state)),
-                    ])
-                    ->columns(2),
+    ->schema([
+        Forms\Components\TextInput::make('name')
+            ->label('Nombre')
+            ->required(),
+        Forms\Components\TextInput::make('lastname')
+            ->label('Apellido')
+            ->required(),
+        Forms\Components\TextInput::make('email')
+            ->label('Correo')
+            ->email()
+            ->required()
+            ->unique(ignoreRecord: true),
+      
+        Forms\Components\TextInput::make('cedula')
+            ->label('Cédula/RIF')
+            ->required()
+            ->unique(ignoreRecord: true),
+      
+        Forms\Components\TextInput::make('phone')
+            ->label('Teléfono')
+            ->mask('9999-9999999')
+            ->required()
+            ->unique(ignoreRecord: true),
+      
+        Forms\Components\TextInput::make('password')
+            ->password()
+            ->label('Contraseña')
+            ->required(fn ($context) => $context === 'create')
+            ->dehydrated(fn ($state) => filled($state)),
+    ])
+    ->columns(2),
 
                 Forms\Components\Section::make('Datos del negocio')
                     ->visible(fn(Get $get) => $get('selectedRoleName') === 'Admin')

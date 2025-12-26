@@ -58,9 +58,11 @@ class EmployeesResource extends Resource
                         Forms\Components\TextInput::make('cedula')
                             ->label('Cédula')
                             ->maxLength(8)
+                      		->unique(ignoreRecord: true)
                             ->required(),
                         Forms\Components\TextInput::make('phone')
                             ->label('Teléfono')
+                      		->unique(ignoreRecord: true)
                             ->mask('9999-9999999')
                             ->required(),
                         Forms\Components\TextInput::make('password')
