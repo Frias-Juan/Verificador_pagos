@@ -55,7 +55,7 @@ Route::get('/aprobar-usuario/{user}', function (User $user) {
         ->body("El usuario {$user->name} {$user->lastname} ahora tiene acceso.")
         ->send();
 
-    return redirect('/admin/users');
+    return redirect('/admin/usuarios');
 })->name('usuario.aprobar')->middleware(['auth']);
 
 Route::get('/rechazar-usuario/{user}', function (User $user) {
@@ -74,5 +74,5 @@ Route::get('/rechazar-usuario/{user}', function (User $user) {
         ->body("La cuenta ha sido eliminada permanentemente.")
         ->send();
 
-    return redirect('/admin/users');
+    return redirect('/admin/usuarios');
 })->name('usuario.rechazar')->middleware(['auth']);
