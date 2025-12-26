@@ -89,8 +89,8 @@ class UsersResource extends Resource
                         Forms\Components\TextInput::make('name')->label('Nombre')->required(),
                         Forms\Components\TextInput::make('lastname')->label('Apellido')->required(),
                         Forms\Components\TextInput::make('email')->label('Correo')->email()->required()->unique(ignoreRecord: true),
-                        Forms\Components\TextInput::make('cedula')->label('Cédula/RIF')->required(),
-                        Forms\Components\TextInput::make('phone')->label('Teléfono')->mask('9999-9999999')->required(),
+                        Forms\Components\TextInput::make('cedula')->label('Cédula/RIF')->required()->unique(),
+                        Forms\Components\TextInput::make('phone')->label('Teléfono')->mask('9999-9999999')->required()->unique(),
 
                         Forms\Components\TextInput::make('password')
                             ->password()
