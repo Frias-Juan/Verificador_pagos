@@ -3,34 +3,29 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\URL; // Importa la fachada URL
-use Illuminate\Http\Request; // Importa la clase Request
-use App\Providers\Filament\EmployeePanelProvider;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Http\Request;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
-       
+        //
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
-        // Añade esto para forzar el esquema HTTPS cuando estés en un entorno seguro
-        if (config('app.env') === 'production' || config('app.env') === 'staging') {
+        // 1. Forzar HTTPS si la URL del .env lo tiene
+        if (str_contains(config('app.url'), 'https')) {
+            URL::forceRootUrl(config('app.url'));
             URL::forceScheme('https');
         }
-    
-        // Esta es la solución específica para ngrok:
-        // Confía en todos los proxies para que Laravel sepa que la conexión original era HTTPS
-        Request::setTrustedProxies(['*'], Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_X_FORWARDED_PORT);
 
+        // 2. Compatibilidad con base de datos (por el error 1273 que tenías antes)
+        Schema::defaultStringLength(191);
+
+        // 3. Observadores
         \App\Models\User::observe(\App\Observers\UserObserver::class);
     }
 }
