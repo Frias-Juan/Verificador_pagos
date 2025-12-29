@@ -29,20 +29,31 @@ class CreateEmployees extends CreateRecord
         // 1. Creamos el usuario en la tabla 'users'
         $user = static::getModel()::create($data);
 
-        // 2. Vínculo con el Negocio (Tu tabla pivote tenant_user)
-        $tenantId = auth()->user()->tenant_id;
-        if ($tenantId) {
-            $user->tenants()->attach($tenantId, [
-                'role_in_tenant' => 'employee'
-            ]);
-        }
-
-        // 3. Vínculo con el Rol de Spatie (Tabla pivote model_has_roles)
-        // Usamos assignRole para que Spatie maneje su propia tabla
-        $user->assignRole('Employee');
-
         return $user;
     }
+
+    protected function afterCreate(): void
+    {
+       /** @var \App\Models\User $user */
+    $user = $this->record;
+    $user->assignRole('Employee');
+    
+    $tenantId = auth()->user()->tenant_id;
+    if ($tenantId) {
+        // FORMA 1: Usar updateExistingPivot
+        $user->tenants()->updateExistingPivot($tenantId, [
+            'role_in_tenant' => 'employee'
+        ]);
+        
+        // FORMA 2: Detach y attach explícito
+        $user->tenants()->detach($tenantId);
+        $user->tenants()->attach($tenantId, [
+            'role_in_tenant' => 'employee',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+}
     
     protected function getRedirectUrl(): string
     {

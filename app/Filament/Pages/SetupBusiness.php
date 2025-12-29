@@ -134,7 +134,9 @@ class SetupBusiness extends Page implements HasForms
 
     // 5. Vincular en tabla pivote de usuarios si existe
     if (method_exists($tenant, 'users')) {
-        $tenant->users()->syncWithoutDetaching([$user->id]);
+        $tenant->users()->syncWithoutDetaching([$user->id, 
+            'role_in_tenant' => 'owner'
+        ]);
     }
 
     Notification::make()

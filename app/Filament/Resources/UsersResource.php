@@ -99,7 +99,8 @@ class UsersResource extends Resource
             ->unique(ignoreRecord: true),
       
         Forms\Components\TextInput::make('cedula')
-            ->label('Cédula/RIF')
+            ->label('Cédula')
+            ->maxLength(8)
             ->required()
             ->unique(ignoreRecord: true),
       
