@@ -49,8 +49,6 @@ class CreateEmployees extends CreateRecord
         $user->tenants()->detach($tenantId);
         $user->tenants()->attach($tenantId, [
             'role_in_tenant' => 'employee',
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
     }
 }
