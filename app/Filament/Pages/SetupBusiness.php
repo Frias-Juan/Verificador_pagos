@@ -76,11 +76,11 @@ class SetupBusiness extends Page implements HasForms
                                     ->hidden(fn(Get $get) => $get('gateway_type') !== 'PAGOMOVIL')
                                     ->placeholder('Seleccione banco'),
                                 
-                                Forms\Components\TextInput::make('zelle_name') 
+                                /*Forms\Components\TextInput::make('zelle_name') 
                                     ->label('Nombre de Cuenta')
                                     ->placeholder('Ej: John Doe')
                                     ->required()
-                                    ->hidden(fn(Get $get) => $get('gateway_type') !== 'ZELLE'),
+                                    ->hidden(fn(Get $get) => $get('gateway_type') !== 'ZELLE'),*/
 
                             ])
                             ->minItems(1)
